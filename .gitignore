@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+out/
+
+# Local environment
+.env
+.env.*
+*.local
+
+# Runtime outputs
+outputs/
+runs/
+browser-profiles/
+profiles/
+downloads/
+tmp/
+temp/
+
+# Generated due diligence evidence
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.webp
+
+# Logs and local run state
+*.log
+*.jsonl
+capture_records.csv
+ready-check-log.jsonl
+run.log
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Credentials and browser state
+cookies.json
+storage-state.json
+auth.json
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
