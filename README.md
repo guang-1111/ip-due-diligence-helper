@@ -1,62 +1,65 @@
-# IP Due Diligence Helper
+# 知识产权网络核查助手
 
-IP Due Diligence Helper is a local desktop-oriented tool for intellectual property network checks. It is designed for workflows where a user has a list of right holders, usually group companies, subsidiaries, and related entities, and needs to collect public-query evidence from multiple official or semi-official websites.
+知识产权网络核查助手是一个面向中文用户的本地半自动化工具，用来辅助完成知识产权网络核查中的重复性工作。典型场景是：使用者拿到一批权利人名称，例如集团公司、子公司、孙公司、分公司等，需要分别在商标、专利、版权、ICP备案、工信部相关网站中查询，并保存目录页和详情页作为底稿。
 
-The first runnable demo will focus on trademark checks. The broader framework reserves places for patent, copyright, ICP/domain filing, and MIIT equipment/network-access checks.
+第一版 demo 会优先实现商标网核模块；专利、版权、ICP备案、工信部查询会先保留统一框架，后续逐步补齐。
 
-## What Problem It Solves
+> English summary: A local semi-automated helper for IP due diligence evidence collection. The first runnable module focuses on trademark checks with visible browser control and user-managed login/captcha handling.
 
-Manual IP network checks are repetitive:
+## 这个项目解决什么问题
 
-- Copy a company/right-holder name into a public query website.
-- Wait for the result page to load.
-- Save the catalog or result-list page as evidence.
-- Open each relevant detail page and save it too.
-- Name and classify files according to project-specific rules.
-- Keep enough logs so the reviewer can tell what was searched, saved, skipped, or manually handled.
+知识产权网核的手工流程很机械，也很容易漏项：
 
-This project tries to reduce that workload without pretending that public websites are stable APIs. The tool should behave like a careful assistant controlling a visible browser, while leaving login, captcha, abnormal pages, and final judgment to the user.
+- 把权利人名称复制到公开查询网站；
+- 等待结果页加载；
+- 保存查询结果目录页；
+- 逐项打开详情页并保存；
+- 按不同项目要求分类、命名和归档；
+- 记录哪些主体查过、哪些页面保存过、哪些情况需要人工处理。
 
-## Current Status
+这个项目的目标不是绕过网站限制，也不是替代人工判断，而是把这些重复步骤标准化，让使用者把精力放在核对和判断上。
 
-This repository is at the early demo stage. It currently contains:
+## 当前状态
 
-- Product specification for the overall IP check workflow.
-- Trademark module specification at coding-level detail.
-- Example company-list input template.
-- Example project configuration template.
-- Repository hygiene rules for keeping confidential materials and generated evidence out of Git.
+本仓库目前处于早期 demo 阶段，已经包含：
 
-No production-ready automation module has been released yet.
+- 知识产权网核整体产品规格；
+- 商标模块执行规格；
+- 示例权利人清单；
+- 示例项目配置；
+- 一个最小可运行的本地项目初始化 demo；
+- Git 忽略规则，避免误提交底稿、浏览器状态、日志和本地输出。
 
-## Planned MVP
+目前还没有发布完整的浏览器自动截图模块。
 
-The MVP target is a local runnable demo that can:
+## MVP 目标
 
-- Create or select a local project folder.
-- Import right-holder names from Excel/CSV or pasted text.
-- Show lightweight warnings for company-name formatting.
-- Ask the user how folders and files should be classified and named.
-- Run the trademark module first.
-- Open a visible browser and let the user handle login/captcha manually.
-- Capture catalog pages and detail pages as PDF evidence.
-- Generate PDFs programmatically with browser-style date, URL, and page-number header/footer.
-- Run a small page-ready check before capture to avoid saving blank or half-loaded pages.
-- Optionally validate captured PDFs when the user prefers quality over speed.
-- Write CSV/JSONL logs for review and troubleshooting.
+第一版 MVP 计划支持：
 
-## Non-Goals
+- 新建或选择本地项目目录；
+- 从 CSV/Excel 兼容文件或直接粘贴导入权利人名称；
+- 对权利人名称做轻量格式提醒；
+- 让用户自定义目录结构和文件命名规则；
+- 优先执行商标模块；
+- 使用可见浏览器，由用户自行处理登录、验证码和异常提示；
+- 保存目录页和详情页 PDF；
+- 通过程序生成带日期、URL、页码等信息的 PDF；
+- 在保存前做轻量页面就绪检查，减少空白页、半加载页；
+- 可选启用 PDF 质量核验；
+- 输出 CSV/JSONL 日志，方便复核。
 
-The project will not attempt to:
+## 不做什么
 
-- Bypass captcha or anti-bot systems.
-- Steal or persist login sessions in the repository.
-- Run high-frequency scraping.
-- Replace legal review or factual verification by the user.
-- Upload confidential evidence to cloud services by default.
-- Modify legal reports automatically.
+本项目不会尝试：
 
-## Repository Layout
+- 绕过验证码或反爬机制；
+- 自动盗取、保存或提交登录状态；
+- 高频批量抓取；
+- 替代律师、实习生或项目组的事实判断；
+- 默认把底稿上传到云端；
+- 自动修改法律报告。
+
+## 仓库结构
 
 ```text
 .
@@ -67,82 +70,85 @@ The project will not attempt to:
 |   |-- project-config.example.json
 |   `-- subjects-template.csv
 |-- src/
-|   `-- README.md
+|   |-- cli.js
+|   |-- README.md
+|   `-- core/
 |-- ROADMAP.md
 |-- README.md
 |-- LICENSE
 `-- .gitignore
 ```
 
-## Quick Start
+## 快速开始
 
-Requirements:
+环境要求：
 
-- Node.js 18 or newer.
+- Node.js 18 或更高版本。
 
-Run a non-interactive sample setup:
+运行非交互示例：
 
 ```bash
 npm run demo:init
 ```
 
-This creates a local ignored workspace under `demo-output/` with sample config, sample subjects, evidence folders, and a JSONL run log.
+该命令会在本地生成 `demo-output/` 示例工作区，包括项目配置、示例主体清单、底稿目录和 JSONL 日志。`demo-output/` 已被 `.gitignore` 忽略，不会被提交到 Git。
 
-Run the interactive setup demo:
+运行交互式项目初始化 demo：
 
 ```bash
 npm start
 ```
 
-The current interactive demo can create a local project workspace from pasted names or a CSV file. Browser-based trademark capture is the next implementation step.
+当前交互式 demo 可以从粘贴文本或 CSV 文件导入权利人名称，并生成本地项目工作区。下一步会接入商标模块的可见浏览器控制和 PDF 保存能力。
 
-Run syntax checks:
+运行语法检查：
 
 ```bash
 npm run check
 ```
-## Documentation
 
-- [Product Spec v0.1](docs/product-spec-v0.1.md)
-- [Trademark Module Spec v0.1](docs/trademark-module-spec-v0.1.md)
-- [Roadmap](ROADMAP.md)
+## 文档
 
-## Example Inputs
+- [产品规格 v0.1](docs/product-spec-v0.1.md)
+- [商标模块执行规格 v0.1](docs/trademark-module-spec-v0.1.md)
+- [开发路线图](ROADMAP.md)
 
-- [subjects-template.csv](examples/subjects-template.csv)
-- [project-config.example.json](examples/project-config.example.json)
+## 示例输入
 
-## Safety Notes
+- [权利人清单模板](examples/subjects-template.csv)
+- [项目配置示例](examples/project-config.example.json)
 
-This tool is intended to assist manual legal due diligence work, not to bypass website restrictions.
+## 使用边界
 
-Users should:
+这个工具用于辅助人工法律尽调和网络核查，不用于绕过网站限制。
 
-- Log in manually where required.
-- Handle captchas manually.
-- Confirm right-holder names before running searches.
-- Review generated PDFs and audit logs.
-- Follow website terms, project instructions, and applicable laws.
+使用者应当：
 
-## Development Notes
+- 在需要时自行登录；
+- 自行处理验证码；
+- 在运行前确认权利人名称；
+- 复核生成的 PDF 和日志；
+- 遵守网站规则、项目要求和适用法律法规。
 
-The first development target is the trademark module plus a shared execution framework. The implementation should prefer:
+## 开发原则
 
-- Visible browser automation over hidden scraping.
-- Explicit pause-and-resume points when pages are abnormal.
-- Conservative speed defaults that avoid mass invalid captures.
-- User-configurable folder and file naming.
-- Local-only outputs by default.
+第一阶段开发重点是“商标模块 + 统一执行框架”。实现时优先考虑：
 
-## Repository Hygiene
+- 使用可见浏览器，而不是隐藏抓取；
+- 遇到异常页面时明确暂停；
+- 采用保守速度，避免批量保存无效页面；
+- 让用户保留目录结构和文件命名的选择权；
+- 默认只在本地保存输出。
 
-Do not commit:
+## 仓库卫生
 
-- Real confidential materials.
-- Generated PDF evidence.
-- Login cookies or browser profiles.
-- Personal absolute paths.
-- API keys or credentials.
-- Project-specific confidential data.
+请不要提交：
 
-See [.gitignore](.gitignore) for default ignored paths.
+- 真实项目材料；
+- 生成的 PDF 底稿；
+- 登录 cookie 或浏览器 profile；
+- 个人绝对路径；
+- API key 或账号凭据；
+- 项目相关保密数据。
+
+详见 [.gitignore](.gitignore)。

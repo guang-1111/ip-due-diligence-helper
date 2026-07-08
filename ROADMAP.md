@@ -1,151 +1,151 @@
-# Roadmap
+# 开发路线图
 
-This roadmap keeps the project focused on a usable local demo first, then expands module coverage after the core workflow is stable.
+这份路线图的目标是：先做出一个能被中文用户下载、运行、理解的本地 demo，再逐步扩展到完整的五类知识产权网核框架。
 
-## Phase 0: Repository Baseline
+## 阶段 0：仓库基线
 
-Status: done
+状态：已完成
 
-- Create a clean GitHub-ready repository.
-- Keep only sanitized docs, examples, and source placeholders.
-- Add `.gitignore` rules for generated evidence, browser profiles, logs, and local config.
-- Add product and trademark module specifications.
-- Add example subject-list and project-config files.
+- 创建干净的 GitHub 仓库；
+- 只保留脱敏后的文档、示例和源码占位；
+- 添加 `.gitignore`，忽略生成底稿、浏览器状态、日志、本地配置等；
+- 添加产品规格和商标模块规格；
+- 添加示例权利人清单和项目配置文件。
 
-## Phase 1: Runnable Local Shell
+## 阶段 1：本地可运行壳子
 
-Goal: let a user start the tool locally and create a check project.
+状态：初版已完成
 
-Planned:
+目标：让用户可以在本地创建一个网核项目。
 
-- Choose the implementation stack.
-- Add a minimal command or desktop entry point.
-- Let the user choose an output root folder.
-- Create a project workspace with predictable subfolders.
-- Load subjects from pasted text, CSV, or Excel-compatible input.
-- Show a pre-run subject confirmation screen.
-- Save a normalized local project config.
+已实现：
 
-Acceptance criteria:
+- `npm start` 交互式项目初始化；
+- `npm run demo:init` 非交互示例初始化；
+- 支持粘贴文本或 CSV 导入权利人名称；
+- 支持轻量权利人名称格式提醒；
+- 支持目录模板和文件名模板；
+- 生成项目配置、主体清单、输出目录和 JSONL 日志骨架。
 
-- A user can create a project without editing source code.
-- The imported right-holder list is visible before any browser action starts.
-- The generated project folder contains config, logs, and output directories.
+验收标准：
 
-## Phase 2: Naming and Classification Builder
+- 用户无需修改源码即可创建项目；
+- 浏览器动作开始前，用户能看到导入的权利人清单；
+- 生成的项目目录包含配置、日志和底稿目录。
 
-Goal: keep maximum user control over evidence folder structure and file names.
+## 阶段 2：命名和分类配置
 
-Planned:
+目标：最大限度保留用户对目录结构和文件命名的选择权。
 
-- Ask the user how to classify evidence folders.
-- Ask the user how to name catalog-page PDFs.
-- Ask the user how to name detail-page PDFs.
-- Support template variables such as subject name, module, page type, index, date, and query keyword.
-- Preview sample output paths before the run starts.
-- Validate illegal Windows filename characters.
+计划：
 
-Acceptance criteria:
+- 让用户选择底稿分类方式；
+- 让用户设置目录页 PDF 命名规则；
+- 让用户设置详情页 PDF 命名规则；
+- 支持项目名、权利类型、权利人名称、页类型、序号、日期、查询关键词等模板变量；
+- 运行前预览示例输出路径；
+- 校验 Windows 文件名非法字符。
 
-- A user can preview where files will be saved before running.
-- Naming rules can be changed per project.
-- The tool refuses obviously invalid paths and asks for correction.
+验收标准：
 
-## Phase 3: Trademark Module Demo
+- 用户运行前可以预览文件保存位置；
+- 命名规则可以按项目修改；
+- 明显非法路径会被拦截并提示修改。
 
-Goal: complete the first useful module for trademark network checks.
+## 阶段 3：商标模块 demo
 
-Planned:
+目标：完成第一个真正有用的网核模块。
 
-- Open the trademark query website in a visible browser.
-- Let the user handle login, captcha, or website prompts manually.
-- Search by right-holder name.
-- Detect catalog page readiness using a small set of checks:
-  - abnormal-page check,
-  - key-field/result-area check,
-  - short visual or content stability check.
-- Save the catalog page as PDF.
-- Identify result rows that need detail capture.
-- Open detail pages one by one.
-- Save detail pages as PDFs.
-- Pause when the page is abnormal, captcha appears, search results are ambiguous, or repeated readiness checks fail.
-- Write structured logs for every searched subject and captured page.
+计划：
 
-Acceptance criteria:
+- 打开商标查询网站的可见浏览器；
+- 用户自行处理登录、验证码和网站提示；
+- 按权利人名称查询；
+- 用少量关键检查判断目录页是否就绪：
+  - 异常页检查；
+  - 关键字段或结果区域检查；
+  - 短时间内容稳定性检查；
+- 保存目录页 PDF；
+- 识别需要进入详情页的结果；
+- 依次打开详情页并保存 PDF；
+- 遇到验证码、登录失效、结果歧义、连续加载失败等情况时暂停；
+- 为每个主体和每个保存动作写入结构化日志。
 
-- For a small sample list, the module captures catalog and detail PDFs into the expected folders.
-- It does not continue blindly after repeated blank, loading, or abnormal pages.
-- The run log makes it clear which subjects succeeded, skipped, paused, or failed.
+验收标准：
 
-## Phase 4: PDF Quality Controls
+- 对小规模示例主体，可以保存目录页和详情页 PDF；
+- 不会在页面空白、半加载或异常时继续批量截图；
+- 日志能说明哪些主体成功、跳过、暂停或失败。
 
-Goal: balance speed and evidence quality.
+## 阶段 4：PDF 质量控制
 
-Planned:
+目标：在速度和底稿质量之间取得平衡。
 
-- Generate PDFs programmatically rather than using the system print dialog.
-- Add browser-style header/footer with date, title or URL, and page number.
-- Add a default fast readiness gate before PDF generation.
-- Add optional PDF validation mode.
-- In validation mode, check for blank pages, obvious loading text, missing subject name, and very small files.
-- Let users disable validation when they prefer manual review or faster capture.
+计划：
 
-Acceptance criteria:
+- 使用程序生成 PDF，而不是调用系统打印弹窗；
+- 加入类似浏览器打印效果的日期、URL、页码等页眉页脚信息；
+- 默认启用快速页面就绪检查；
+- 提供可选 PDF 核验模式；
+- 核验模式检查空白页、加载中文案、缺少主体名称、文件过小等常见问题；
+- 允许用户在“速度优先”和“质量优先”之间选择。
 
-- Default capture avoids most half-loaded pages without becoming slow.
-- Optional validation catches common bad PDFs.
-- The user can choose speed-first or quality-first behavior.
+验收标准：
 
-## Phase 5: Five-Module Framework
+- 默认模式能避免大部分半加载页面；
+- 可选核验能抓到常见坏 PDF；
+- 用户可以关闭核验以提高速度。
 
-Goal: keep trademark as the first implementation while shaping a common framework for all IP checks.
+## 阶段 5：五类网核统一框架
 
-Planned modules:
+目标：保留商标模块优先实现，同时形成可复用的五类网核框架。
 
-- Trademark checks.
-- Patent publication/query checks.
-- Copyright registration checks.
-- ICP/IP/domain filing checks.
-- MIIT equipment/network-access checks.
+计划模块：
 
-Shared framework:
+- 商标查询；
+- 专利公布/查询；
+- 版权登记查询；
+- ICP/IP/域名备案查询；
+- 工信部设备或进网相关查询。
 
-- Subject import.
-- Naming and classification templates.
-- Visible browser session handling.
-- Page readiness gates.
-- PDF capture.
-- Pause/resume behavior.
-- Logs and run summary.
+共享能力：
 
-Acceptance criteria:
+- 权利人导入；
+- 目录和文件命名模板；
+- 可见浏览器会话；
+- 页面就绪检查；
+- PDF 保存；
+- 暂停和恢复；
+- 日志和运行摘要。
 
-- Adding a new module does not require rewriting import, naming, PDF, or logging logic.
-- Modules can be enabled or disabled per project.
-- Unsupported modules show clear "reserved/not implemented" states.
+验收标准：
 
-## Phase 6: Review and Sharing Polish
+- 新增模块时不用重写导入、命名、PDF、日志逻辑；
+- 每个模块可以按项目启用或关闭；
+- 尚未实现的模块显示清晰的“预留/未实现”状态。
 
-Goal: make the project easier for others to download, run, and understand.
+## 阶段 6：分享和使用体验打磨
 
-Planned:
+目标：让其他中文用户更容易下载、运行和理解。
 
-- Add setup instructions after the implementation stack is chosen.
-- Add screenshots or a short demo GIF once UI exists.
-- Add troubleshooting notes for slow pages, captcha, login, and PDF failures.
-- Add sample output structure using fake companies only.
-- Add contribution guidelines if more people will help develop it.
+计划：
 
-Acceptance criteria:
+- 在技术栈稳定后补充安装说明；
+- 有界面后添加截图或短演示；
+- 补充慢网页、验证码、登录、PDF 失败等常见问题；
+- 用虚构公司展示示例输出结构；
+- 如果后续多人协作，再补贡献说明。
 
-- A new user can clone the repository and run the demo from the README.
-- The repository does not contain confidential evidence or personal project paths.
-- Known limitations are clearly stated.
+验收标准：
 
-## Open Decisions
+- 新用户 clone 仓库后能按 README 跑通 demo；
+- 仓库不包含真实项目材料或个人路径；
+- 已知限制清楚写明。
 
-- Implementation stack: command-line first, lightweight desktop app, or browser-based local UI.
-- Browser control layer: Playwright persistent profile, Chrome DevTools Protocol, or another visible-browser approach.
-- Excel support: native `.xlsx` parsing in the app or CSV-first with Excel export guidance.
-- Company-name verification: simple warning only, optional search-assist, or delayed until the workflow is stable.
-- PDF validation depth: fast heuristic checks first, OCR only as an optional later feature.
+## 待定问题
+
+- 技术形态：命令行优先、轻量桌面应用，还是本地网页 UI；
+- 浏览器控制方式：Playwright 持久化 profile、Chrome DevTools Protocol，或其他可见浏览器方案；
+- Excel 支持：直接解析 `.xlsx`，还是先 CSV 优先；
+- 公司名称校验：仅做格式提醒，还是后续增加可选搜索辅助；
+- PDF 核验深度：先做快速规则，OCR 作为后续可选能力。

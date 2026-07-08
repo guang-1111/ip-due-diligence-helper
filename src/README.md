@@ -1,6 +1,6 @@
-# Source Directory
+# 源码目录
 
-Current runnable entry point:
+当前可运行入口：
 
 ```text
 src/
@@ -12,16 +12,16 @@ src/
     subjects.js
 ```
 
-Implemented so far:
+已实现：
 
-- Interactive local project setup.
-- Non-interactive sample project setup via `npm run demo:init`.
-- CSV and pasted-text subject import.
-- Lightweight subject-name warnings.
-- User-configurable directory and filename templates.
-- Project config, subject CSV, output folders, and JSONL run-log creation.
+- 交互式本地项目初始化；
+- `npm run demo:init` 非交互示例初始化；
+- CSV 和粘贴文本导入权利人；
+- 轻量权利人名称格式提醒；
+- 用户可配置目录模板和文件名模板；
+- 创建项目配置、主体 CSV、输出目录和 JSONL 日志。
 
-Planned next structure:
+下一步计划结构：
 
 ```text
 src/
@@ -33,4 +33,4 @@ src/
     validation/
 ```
 
-The next implementation target is visible-browser trademark capture.
+下一个实现目标是商标模块的可见浏览器控制和 PDF 保存。
