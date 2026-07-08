@@ -49,3 +49,6 @@ auth.json
 *.sqlite-shm
 *.sqlite-wal
 
+
+# Local demo workspaces
+demo-output/

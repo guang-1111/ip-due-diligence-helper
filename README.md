@@ -74,6 +74,33 @@ The project will not attempt to:
 `-- .gitignore
 ```
 
+## Quick Start
+
+Requirements:
+
+- Node.js 18 or newer.
+
+Run a non-interactive sample setup:
+
+```bash
+npm run demo:init
+```
+
+This creates a local ignored workspace under `demo-output/` with sample config, sample subjects, evidence folders, and a JSONL run log.
+
+Run the interactive setup demo:
+
+```bash
+npm start
+```
+
+The current interactive demo can create a local project workspace from pasted names or a CSV file. Browser-based trademark capture is the next implementation step.
+
+Run syntax checks:
+
+```bash
+npm run check
+```
 ## Documentation
 
 - [Product Spec v0.1](docs/product-spec-v0.1.md)
