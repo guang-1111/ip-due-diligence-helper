@@ -126,6 +126,15 @@ async function runTrademarkStatus() {
   if (result.inspected) {
     console.log(`  当前标题：${result.inspected.title}`);
     console.log(`  当前网址：${result.inspected.url}`);
+    console.log(`  页面加载状态：${result.inspected.readyState}`);
+    console.log(`  输入控件数：${result.inspected.inputCount}`);
+    console.log(`  按钮/链接数：${result.inspected.buttonCount}`);
+    if (result.inspected.textSample) {
+      console.log(`  页面文字摘要：${result.inspected.textSample}`);
+    }
+  }
+  if (result.snapshotError) {
+    console.log(`  DOM 读取提示：${result.snapshotError}`);
   }
   console.log(`  提示：${result.message}`);
   if (result.pages && result.pages.length > 1) {
