@@ -7,6 +7,7 @@ const { createProjectWorkspace } = require("./core/project");
 const { loadSubjectsFromCsv, parseSubjectsFromText, summarizeSubjectWarnings } = require("./core/subjects");
 const { previewOutputPaths } = require("./core/naming");
 const { openTrademarkBrowser } = require("./modules/trademark/openBrowser");
+const { inspectTrademarkPage } = require("./modules/trademark/status");
 
 const DEFAULT_DIRECTORY_TEMPLATE = "{projectName}/{rightType}/{subjectName}";
 const DEFAULT_FILE_TEMPLATES = {
@@ -24,6 +25,7 @@ function printHelp() {
   npm run demo:init
   npm run trademark:open
   npm run trademark:open:fresh
+  npm run trademark:status
   node src/cli.js --trademark-open --project <项目目录或 project-config.json>
   node src/cli.js --trademark-open --fresh-profile
   node src/cli.js --trademark-open --dry-run
@@ -115,6 +117,24 @@ function runTrademarkOpen() {
   }
 }
 
+async function runTrademarkStatus() {
+  const result = await inspectTrademarkPage({});
+  console.log("商标模块页面状态检测：");
+  console.log(`  DevTools 端口：${result.debugPort}`);
+  console.log(`  状态：${result.state}`);
+  console.log(`  是否可接管：${result.canTakeOver ? "是" : "否"}`);
+  if (result.inspected) {
+    console.log(`  当前标题：${result.inspected.title}`);
+    console.log(`  当前网址：${result.inspected.url}`);
+  }
+  console.log(`  提示：${result.message}`);
+  if (result.pages && result.pages.length > 1) {
+    console.log("\n  已发现页面：");
+    result.pages.forEach((page, index) => {
+      console.log(`  ${index + 1}. ${page.title} - ${page.url}`);
+    });
+  }
+}
 async function main() {
   if (process.argv.includes("--help") || process.argv.includes("-h")) {
     printHelp();
@@ -128,6 +148,11 @@ async function main() {
 
   if (process.argv.includes("--trademark-open")) {
     runTrademarkOpen();
+    return;
+  }
+
+  if (process.argv.includes("--trademark-status")) {
+    await runTrademarkStatus();
     return;
   }
 

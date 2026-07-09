@@ -122,6 +122,14 @@ npm run trademark:open:fresh
 node src/cli.js --trademark-open --dry-run
 ```
 
+检测当前浏览器页面是否可以接管：
+
+```bash
+npm run trademark:status
+```
+
+如果状态是 `official_homepage`，说明仍在商标局官网首页，需要先手动进入商标查询系统；如果状态是 `query_or_related_page`，才进入下一步自动查询/截图开发。
+
 运行语法检查：
 
 ```bash

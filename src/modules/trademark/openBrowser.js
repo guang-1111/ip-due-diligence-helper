@@ -4,6 +4,7 @@ const { spawn } = require("node:child_process");
 const { appendJsonLine } = require("../../core/logger");
 
 const DEFAULT_ENTRY_URL = "https://sbj.cnipa.gov.cn/sbj/index.html";
+const DEFAULT_DEBUG_PORT = 9223;
 
 const BROWSER_CANDIDATES = [
   {
@@ -82,18 +83,19 @@ function createProfileDir(projectRoot, freshProfile) {
   return path.join(baseDir, `trademark-fresh-${stamp}`);
 }
 
-function buildBrowserArgs({ entryUrl, profileDir }) {
+function buildBrowserArgs({ entryUrl, profileDir, debugPort = DEFAULT_DEBUG_PORT }) {
   return [
     `--user-data-dir=${profileDir}`,
     "--new-window",
     "--no-first-run",
     "--disable-default-apps",
     "--disable-blink-features=AutomationControlled",
+    `--remote-debugging-port=${debugPort}`,
     entryUrl,
   ];
 }
 
-function openTrademarkBrowser({ projectArg, dryRun = false, freshProfile = false }) {
+function openTrademarkBrowser({ projectArg, dryRun = false, freshProfile = false, debugPort = DEFAULT_DEBUG_PORT }) {
   const { config, configPath, projectRoot } = loadProjectConfig(projectArg);
   const browser = findBrowserExecutable();
   const entryUrl = getTrademarkEntryUrl(config);
@@ -104,7 +106,7 @@ function openTrademarkBrowser({ projectArg, dryRun = false, freshProfile = false
   ensureDir(profileDir);
   ensureDir(logsDir);
 
-  const args = buildBrowserArgs({ entryUrl, profileDir });
+  const args = buildBrowserArgs({ entryUrl, profileDir, debugPort });
   const event = {
     event: dryRun ? "trademark_browser_dry_run" : "trademark_browser_opened",
     at: new Date().toISOString(),
@@ -136,6 +138,7 @@ function openTrademarkBrowser({ projectArg, dryRun = false, freshProfile = false
 }
 
 module.exports = {
+  DEFAULT_DEBUG_PORT,
   openTrademarkBrowser,
   resolveConfigPath,
 };
