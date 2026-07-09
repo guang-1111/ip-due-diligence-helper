@@ -108,7 +108,13 @@ npm start
 npm run trademark:open
 ```
 
-默认会读取 `demo-output/Sample IP Due Diligence Project/config/project-config.json`，并用独立浏览器 profile 打开商标局官网。使用者需要按真实人工流程进入商标查询系统，并自行处理登录、验证码或网站提示。
+如果之前打开过旧的商标模块窗口，建议用临时 profile 验证：
+
+```bash
+npm run trademark:open:fresh
+```
+
+默认会读取 `demo-output/Sample IP Due Diligence Project/config/project-config.json`，并用独立浏览器 profile 打开商标局官网。`npm run trademark:open:fresh` 会每次创建临时 profile，适合排查旧浏览器窗口没有接收新 URL 的问题。使用者需要按真实人工流程进入商标查询系统，并自行处理登录、验证码或网站提示。
 
 只验证启动参数、不实际打开浏览器：
 

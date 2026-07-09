@@ -23,7 +23,9 @@ function printHelp() {
   npm start
   npm run demo:init
   npm run trademark:open
+  npm run trademark:open:fresh
   node src/cli.js --trademark-open --project <项目目录或 project-config.json>
+  node src/cli.js --trademark-open --fresh-profile
   node src/cli.js --trademark-open --dry-run
 
 当前 demo 已支持创建本地项目工作区，并可以打开商标模块的可见浏览器入口。后续会继续接入查询、页面就绪检查和 PDF 保存。
@@ -96,13 +98,15 @@ function createSampleProject() {
 function runTrademarkOpen() {
   const projectArg = getArgValue("--project");
   const dryRun = process.argv.includes("--dry-run");
-  const result = openTrademarkBrowser({ projectArg, dryRun });
+  const freshProfile = process.argv.includes("--fresh-profile");
+  const result = openTrademarkBrowser({ projectArg, dryRun, freshProfile });
 
   console.log(dryRun ? "商标模块浏览器 dry-run 完成：" : "商标模块浏览器已打开：");
   console.log(`  项目目录：${result.projectRoot}`);
   console.log(`  浏览器：${result.browser}`);
   console.log(`  入口网址：${result.entryUrl}`);
   console.log(`  浏览器 profile：${result.profileDir}`);
+  console.log(`  是否临时 profile：${result.freshProfile ? "是" : "否"}`);
   console.log(`  运行日志：${result.runLogPath}`);
   if (dryRun) {
     console.log(`  启动命令：${result.commandPreview}`);

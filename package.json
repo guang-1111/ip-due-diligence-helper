@@ -8,6 +8,7 @@
     "start": "node src/cli.js",
     "demo:init": "node src/cli.js --init-sample",
     "trademark:open": "node src/cli.js --trademark-open",
+    "trademark:open:fresh": "node src/cli.js --trademark-open --fresh-profile",
     "check": "node --check src/cli.js && node --check src/core/project.js && node --check src/core/subjects.js && node --check src/core/naming.js && node --check src/core/logger.js && node --check src/modules/trademark/openBrowser.js"
   },
   "keywords": [

@@ -23,7 +23,7 @@ src/
 - 轻量权利人名称格式提醒；
 - 用户可配置目录模板和文件名模板；
 - 创建项目配置、主体 CSV、输出目录和 JSONL 日志；
-- `npm run trademark:open` 打开商标模块可见浏览器入口。
+- `npm run trademark:open` 打开商标模块可见浏览器入口；`n- `npm run trademark:open:fresh` 使用临时 profile 打开入口，用于排查旧窗口未接收新 URL 的问题。
 
 下一步计划结构：
 

@@ -72,6 +72,16 @@ function getTrademarkEntryUrl(config) {
   return (config.trademark && config.trademark.entryUrl) || DEFAULT_ENTRY_URL;
 }
 
+function createProfileDir(projectRoot, freshProfile) {
+  const baseDir = path.join(projectRoot, "browser-profiles");
+  if (!freshProfile) {
+    return path.join(baseDir, "trademark");
+  }
+
+  const stamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
+  return path.join(baseDir, `trademark-fresh-${stamp}`);
+}
+
 function buildBrowserArgs({ entryUrl, profileDir }) {
   return [
     `--user-data-dir=${profileDir}`,
@@ -83,11 +93,11 @@ function buildBrowserArgs({ entryUrl, profileDir }) {
   ];
 }
 
-function openTrademarkBrowser({ projectArg, dryRun = false }) {
+function openTrademarkBrowser({ projectArg, dryRun = false, freshProfile = false }) {
   const { config, configPath, projectRoot } = loadProjectConfig(projectArg);
   const browser = findBrowserExecutable();
   const entryUrl = getTrademarkEntryUrl(config);
-  const profileDir = path.join(projectRoot, "browser-profiles", "trademark");
+  const profileDir = createProfileDir(projectRoot, freshProfile);
   const logsDir = path.join(projectRoot, "logs");
   const runLogPath = path.join(logsDir, "run.jsonl");
 
@@ -103,6 +113,7 @@ function openTrademarkBrowser({ projectArg, dryRun = false }) {
     browserPath: browser.path,
     entryUrl,
     profileDir,
+    freshProfile,
     configPath,
   };
 
