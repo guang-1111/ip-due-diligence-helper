@@ -30,7 +30,7 @@
 - 一个最小可运行的本地项目初始化 demo；`n- 商标模块可见浏览器入口打开能力；
 - Git 忽略规则，避免误提交底稿、浏览器状态、日志和本地输出。
 
-目前已经可以打开商标查询入口，但还没有发布完整的查询、截图和 PDF 保存模块。
+目前已经可以打开商标局官网入口，但还没有发布完整的查询、截图和 PDF 保存模块。
 
 ## MVP 目标
 
@@ -108,7 +108,7 @@ npm start
 npm run trademark:open
 ```
 
-默认会读取 `demo-output/Sample IP Due Diligence Project/config/project-config.json`，并用独立浏览器 profile 打开商标查询网站。使用者需要自行处理登录、验证码或网站提示。
+默认会读取 `demo-output/Sample IP Due Diligence Project/config/project-config.json`，并用独立浏览器 profile 打开商标局官网。使用者需要按真实人工流程进入商标查询系统，并自行处理登录、验证码或网站提示。
 
 只验证启动参数、不实际打开浏览器：
 

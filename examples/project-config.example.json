@@ -1,40 +1,39 @@
 {
-    "projectName":  "Example IP Due Diligence Project",
-    "checkDate":  "2026-07-07",
-    "outputRoot":  "D:/due-diligence-output/example-project",
-    "enabledModules":  [
-                           "trademark"
-                       ],
-    "directoryTemplate":  "{projectName}/{rightType}/{subjectName}",
-    "fileNameTemplates":  {
-                              "catalog":  "{subjectName}_{rightType}_catalog.pdf",
-                              "noResult":  "{subjectName}_{rightType}_no_result.pdf",
-                              "detail":  "{rightNo}_detail.pdf",
-                              "detailWithClass":  "{rightNo}({classNo})_detail.pdf",
-                              "error":  "{subjectName}_{rightType}_error_{timestamp}.pdf"
-                          },
-    "trademark":  {
-                      "enabled":  true,
-                      "entryUrl":  "http://wcjs.sbj.cnipa.gov.cn/sgtmi",
-                      "queryMode":  "owner_name",
-                      "browserMode":  "connect_existing",
-                      "waitMode":  "standard",
-                      "readyGate":  {
-                                        "mode":  "light",
-                                        "catalogBaseWaitMs":  2000,
-                                        "catalogExtraWaitMs":  8000,
-                                        "detailBaseWaitMs":  1500,
-                                        "detailExtraWaitMs":  6000,
-                                        "stabilityIntervalMs":  1000,
-                                        "maxConsecutiveReadyFailures":  3
-                                    },
-                      "maxRetries":  1,
-                      "saveMultiPageDetail":  false,
-                      "pdfValidation":  {
-                                            "enabled":  false,
-                                            "mode":  "text",
-                                            "minTextLength":  200
-                                        },
-                      "fileConflict":  "skip"
-                  }
+  "projectName": "Example IP Due Diligence Project",
+  "checkDate": "2026-07-07",
+  "outputRoot": "D:/due-diligence-output/example-project",
+  "enabledModules": ["trademark"],
+  "directoryTemplate": "{projectName}/{rightType}/{subjectName}",
+  "fileNameTemplates": {
+    "catalog": "{subjectName}_{rightType}_catalog.pdf",
+    "noResult": "{subjectName}_{rightType}_no_result.pdf",
+    "detail": "{rightNo}_detail.pdf",
+    "detailWithClass": "{rightNo}({classNo})_detail.pdf",
+    "error": "{subjectName}_{rightType}_error_{timestamp}.pdf"
+  },
+  "trademark": {
+    "enabled": true,
+    "entryUrl": "https://sbj.cnipa.gov.cn/sbj/index.html",
+    "manualEntryNote": "先打开商标局官网，由用户按真实人工流程进入商标查询系统；不要默认直达 /sgtmi。",
+    "queryMode": "owner_name",
+    "browserMode": "visible_profile",
+    "waitMode": "standard",
+    "readyGate": {
+      "mode": "light",
+      "catalogBaseWaitMs": 2000,
+      "catalogExtraWaitMs": 8000,
+      "detailBaseWaitMs": 1500,
+      "detailExtraWaitMs": 6000,
+      "stabilityIntervalMs": 1000,
+      "maxConsecutiveReadyFailures": 3
+    },
+    "maxRetries": 1,
+    "saveMultiPageDetail": false,
+    "pdfValidation": {
+      "enabled": false,
+      "mode": "text",
+      "minTextLength": 200
+    },
+    "fileConflict": "skip"
+  }
 }

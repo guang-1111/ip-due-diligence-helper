@@ -1,4 +1,4 @@
-﻿# 商标网核模块执行规格 v0.1
+# 商标网核模块执行规格 v0.1
 
 ## 1. 模块定位
 
@@ -23,13 +23,19 @@
 http://wcjs.sbj.cnipa.gov.cn/
 ```
 
-常见入口：
+默认打开入口：
+
+```text
+https://sbj.cnipa.gov.cn/sbj/index.html
+```
+
+历史上可见的深层入口包括：
 
 ```text
 http://wcjs.sbj.cnipa.gov.cn/sgtmi
 ```
 
-实际开发时不得把单一 URL 视为绝对稳定入口。模块应允许在配置中维护入口 URL。
+但该深层入口可能被网站防护系统阻断。第一版程序不得默认直达 `/sgtmi`，应先打开商标局官网，由使用者按真实人工流程进入商标查询系统。模块仍应允许在配置中维护入口 URL。
 
 ## 3. 输入与输出
 
@@ -812,9 +818,9 @@ stopped
 {
   "module": "trademark",
   "enabled": true,
-  "entryUrl": "http://wcjs.sbj.cnipa.gov.cn/sgtmi",
+  "entryUrl": "https://sbj.cnipa.gov.cn/sbj/index.html",
   "queryMode": "owner_name",
-  "browserMode": "connect_existing",
+  "browserMode": "visible_profile",
   "waitMode": "standard",
   "readyGate": {
     "mode": "light",

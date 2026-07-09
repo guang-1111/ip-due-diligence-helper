@@ -107,7 +107,7 @@ function runTrademarkOpen() {
   if (dryRun) {
     console.log(`  启动命令：${result.commandPreview}`);
   } else {
-    console.log("\n请在打开的浏览器中处理登录、验证码或网站提示。下一步将接入查询和 PDF 保存。");
+    console.log("\n请在打开的浏览器中按真实人工流程进入商标查询系统，并处理登录、验证码或网站提示。下一步将接入查询和 PDF 保存。");
   }
 }
 
@@ -169,7 +169,7 @@ async function main() {
       },
       trademark: {
         enabled: true,
-        entryUrl: "http://wcjs.sbj.cnipa.gov.cn/sgtmi",
+        entryUrl: "https://sbj.cnipa.gov.cn/sbj/index.html",
         status: "browser_open_ready",
       },
     };

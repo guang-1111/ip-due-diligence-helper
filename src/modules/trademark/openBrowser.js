@@ -3,7 +3,7 @@ const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { appendJsonLine } = require("../../core/logger");
 
-const DEFAULT_ENTRY_URL = "http://wcjs.sbj.cnipa.gov.cn/sgtmi";
+const DEFAULT_ENTRY_URL = "https://sbj.cnipa.gov.cn/sbj/index.html";
 
 const BROWSER_CANDIDATES = [
   {
@@ -78,6 +78,7 @@ function buildBrowserArgs({ entryUrl, profileDir }) {
     "--new-window",
     "--no-first-run",
     "--disable-default-apps",
+    "--disable-blink-features=AutomationControlled",
     entryUrl,
   ];
 }
