@@ -6,6 +6,7 @@ const path = require("node:path");
 const { createProjectWorkspace } = require("./core/project");
 const { loadSubjectsFromCsv, parseSubjectsFromText, summarizeSubjectWarnings } = require("./core/subjects");
 const { previewOutputPaths } = require("./core/naming");
+const { openTrademarkBrowser } = require("./modules/trademark/openBrowser");
 
 const DEFAULT_DIRECTORY_TEMPLATE = "{projectName}/{rightType}/{subjectName}";
 const DEFAULT_FILE_TEMPLATES = {
@@ -16,15 +17,23 @@ const DEFAULT_FILE_TEMPLATES = {
 };
 
 function printHelp() {
-  console.log(`IP Due Diligence Helper
+  console.log(`知识产权网络核查助手
 
-Usage:
+用法：
   npm start
   npm run demo:init
-  node src/cli.js --init-sample
+  npm run trademark:open
+  node src/cli.js --trademark-open --project <项目目录或 project-config.json>
+  node src/cli.js --trademark-open --dry-run
 
-This early demo creates a local project workspace, imports right-holder names, previews naming rules, and writes config/log skeletons. Browser capture is reserved for the trademark module implementation.
+当前 demo 已支持创建本地项目工作区，并可以打开商标模块的可见浏览器入口。后续会继续接入查询、页面就绪检查和 PDF 保存。
 `);
+}
+
+function getArgValue(name) {
+  const index = process.argv.indexOf(name);
+  if (index === -1) return undefined;
+  return process.argv[index + 1];
 }
 
 async function askWithDefault(rl, question, defaultValue) {
@@ -41,7 +50,7 @@ async function askYesNo(rl, question, defaultValue = true) {
 }
 
 async function readPastedSubjects(rl) {
-  console.log("Paste one right-holder/company name per line. Submit an empty line when finished.");
+  console.log("请逐行粘贴权利人/公司名称。输入空行结束。");
   const lines = [];
   while (true) {
     const line = await rl.question("> ");
@@ -53,15 +62,15 @@ async function readPastedSubjects(rl) {
 
 async function loadSubjects(rl) {
   while (true) {
-    const mode = (await askWithDefault(rl, "Import subjects from CSV file or pasted text?", "paste")).toLowerCase();
-    if (["paste", "p"].includes(mode)) {
+    const mode = (await askWithDefault(rl, "从 CSV 文件导入，还是直接粘贴？", "paste")).toLowerCase();
+    if (["paste", "p", "粘贴"].includes(mode)) {
       return readPastedSubjects(rl);
     }
-    if (["csv", "file", "f"].includes(mode)) {
-      const csvPath = await askWithDefault(rl, "CSV path", "examples/subjects-template.csv");
+    if (["csv", "file", "f", "文件"].includes(mode)) {
+      const csvPath = await askWithDefault(rl, "CSV 路径", "examples/subjects-template.csv");
       return loadSubjectsFromCsv(path.resolve(csvPath));
     }
-    console.log("Please enter paste or csv.");
+    console.log("请输入 paste 或 csv。");
   }
 }
 
@@ -77,12 +86,31 @@ function createSampleProject() {
     outputRoot: path.resolve("demo-output"),
   };
   const result = createProjectWorkspace({ config: sampleConfig, subjects });
-  console.log("Sample project workspace created:");
-  console.log(`  Root: ${result.projectRoot}`);
-  console.log(`  Config: ${result.configPath}`);
-  console.log(`  Subjects: ${result.subjectsPath}`);
-  console.log(`  Run log: ${result.runLogPath}`);
+  console.log("示例项目工作区已创建：");
+  console.log(`  根目录：${result.projectRoot}`);
+  console.log(`  配置：${result.configPath}`);
+  console.log(`  主体清单：${result.subjectsPath}`);
+  console.log(`  运行日志：${result.runLogPath}`);
 }
+
+function runTrademarkOpen() {
+  const projectArg = getArgValue("--project");
+  const dryRun = process.argv.includes("--dry-run");
+  const result = openTrademarkBrowser({ projectArg, dryRun });
+
+  console.log(dryRun ? "商标模块浏览器 dry-run 完成：" : "商标模块浏览器已打开：");
+  console.log(`  项目目录：${result.projectRoot}`);
+  console.log(`  浏览器：${result.browser}`);
+  console.log(`  入口网址：${result.entryUrl}`);
+  console.log(`  浏览器 profile：${result.profileDir}`);
+  console.log(`  运行日志：${result.runLogPath}`);
+  if (dryRun) {
+    console.log(`  启动命令：${result.commandPreview}`);
+  } else {
+    console.log("\n请在打开的浏览器中处理登录、验证码或网站提示。下一步将接入查询和 PDF 保存。");
+  }
+}
+
 async function main() {
   if (process.argv.includes("--help") || process.argv.includes("-h")) {
     printHelp();
@@ -94,34 +122,39 @@ async function main() {
     return;
   }
 
+  if (process.argv.includes("--trademark-open")) {
+    runTrademarkOpen();
+    return;
+  }
+
   const rl = readline.createInterface({ input, output });
   try {
-    console.log("IP Due Diligence Helper - local project setup demo\n");
+    console.log("知识产权网络核查助手 - 本地项目初始化 demo\n");
 
-    const projectName = await askWithDefault(rl, "Project name", "Example IP Due Diligence Project");
-    const outputRoot = await askWithDefault(rl, "Output root folder", path.resolve("demo-output"));
+    const projectName = await askWithDefault(rl, "项目名称", "Example IP Due Diligence Project");
+    const outputRoot = await askWithDefault(rl, "输出根目录", path.resolve("demo-output"));
 
     const subjects = await loadSubjects(rl);
     if (subjects.length === 0) {
-      console.log("No subjects were imported. Nothing to create.");
+      console.log("没有导入任何权利人，已停止。");
       return;
     }
 
-    console.log(`\nImported ${subjects.length} subject(s):`);
+    console.log(`\n已导入 ${subjects.length} 个权利人：`);
     subjects.forEach((subject, index) => {
       console.log(`  ${index + 1}. ${subject.name}`);
     });
 
     const warnings = summarizeSubjectWarnings(subjects);
     if (warnings.length > 0) {
-      console.log("\nName-format warnings:");
+      console.log("\n名称格式提醒：");
       warnings.forEach((warning) => console.log(`  - ${warning}`));
-      console.log("These are lightweight prompts only. Please verify legal names against your project materials.");
+      console.log("这些只是轻量提醒。请以项目资料中的法定名称为准。");
     }
 
-    const directoryTemplate = await askWithDefault(rl, "Directory template", DEFAULT_DIRECTORY_TEMPLATE);
-    const catalogTemplate = await askWithDefault(rl, "Catalog PDF filename template", DEFAULT_FILE_TEMPLATES.catalog);
-    const detailTemplate = await askWithDefault(rl, "Detail PDF filename template", DEFAULT_FILE_TEMPLATES.detail);
+    const directoryTemplate = await askWithDefault(rl, "目录模板", DEFAULT_DIRECTORY_TEMPLATE);
+    const catalogTemplate = await askWithDefault(rl, "目录页 PDF 文件名模板", DEFAULT_FILE_TEMPLATES.catalog);
+    const detailTemplate = await askWithDefault(rl, "详情页 PDF 文件名模板", DEFAULT_FILE_TEMPLATES.detail);
 
     const config = {
       projectName,
@@ -136,36 +169,36 @@ async function main() {
       },
       trademark: {
         enabled: true,
-        status: "reserved_for_next_demo_step",
+        entryUrl: "http://wcjs.sbj.cnipa.gov.cn/sgtmi",
+        status: "browser_open_ready",
       },
     };
 
-    console.log("\nSample output preview:");
+    console.log("\n输出路径预览：");
     previewOutputPaths(config, subjects.slice(0, 3)).forEach((preview) => {
       console.log(`  - ${preview}`);
     });
 
-    const shouldCreate = await askYesNo(rl, "Create this project workspace now?", true);
+    const shouldCreate = await askYesNo(rl, "现在创建这个项目工作区吗？", true);
     if (!shouldCreate) {
-      console.log("Cancelled before writing files.");
+      console.log("已取消，未写入文件。");
       return;
     }
 
     const result = createProjectWorkspace({ config, subjects });
-    console.log("\nProject workspace created:");
-    console.log(`  Root: ${result.projectRoot}`);
-    console.log(`  Config: ${result.configPath}`);
-    console.log(`  Subjects: ${result.subjectsPath}`);
-    console.log(`  Run log: ${result.runLogPath}`);
-    console.log("\nNext implementation step: connect the trademark module to visible browser capture.");
+    console.log("\n项目工作区已创建：");
+    console.log(`  根目录：${result.projectRoot}`);
+    console.log(`  配置：${result.configPath}`);
+    console.log(`  主体清单：${result.subjectsPath}`);
+    console.log(`  运行日志：${result.runLogPath}`);
+    console.log("\n下一步可运行：npm run trademark:open");
   } finally {
     rl.close();
   }
 }
 
 main().catch((error) => {
-  console.error("\nSetup failed:");
+  console.error("\n执行失败：");
   console.error(error.message);
   process.exitCode = 1;
 });
-

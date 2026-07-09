@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node src/cli.js",
     "demo:init": "node src/cli.js --init-sample",
-    "check": "node --check src/cli.js && node --check src/core/project.js && node --check src/core/subjects.js && node --check src/core/naming.js && node --check src/core/logger.js"
+    "trademark:open": "node src/cli.js --trademark-open",
+    "check": "node --check src/cli.js && node --check src/core/project.js && node --check src/core/subjects.js && node --check src/core/naming.js && node --check src/core/logger.js && node --check src/modules/trademark/openBrowser.js"
   },
   "keywords": [
     "intellectual-property",

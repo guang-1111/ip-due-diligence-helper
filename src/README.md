@@ -10,6 +10,9 @@ src/
     naming.js
     project.js
     subjects.js
+  modules/
+    trademark/
+      openBrowser.js
 ```
 
 已实现：
@@ -19,7 +22,8 @@ src/
 - CSV 和粘贴文本导入权利人；
 - 轻量权利人名称格式提醒；
 - 用户可配置目录模板和文件名模板；
-- 创建项目配置、主体 CSV、输出目录和 JSONL 日志。
+- 创建项目配置、主体 CSV、输出目录和 JSONL 日志；
+- `npm run trademark:open` 打开商标模块可见浏览器入口。
 
 下一步计划结构：
 
@@ -27,10 +31,13 @@ src/
 src/
   modules/
     trademark/
+      search.js
+      readyGate.js
+      capture.js
   core/
     browser/
     pdf/
     validation/
 ```
 
-下一个实现目标是商标模块的可见浏览器控制和 PDF 保存。
+下一个实现目标是商标查询动作、页面就绪检查和 PDF 保存。

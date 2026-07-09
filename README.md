@@ -27,10 +27,10 @@
 - 商标模块执行规格；
 - 示例权利人清单；
 - 示例项目配置；
-- 一个最小可运行的本地项目初始化 demo；
+- 一个最小可运行的本地项目初始化 demo；`n- 商标模块可见浏览器入口打开能力；
 - Git 忽略规则，避免误提交底稿、浏览器状态、日志和本地输出。
 
-目前还没有发布完整的浏览器自动截图模块。
+目前已经可以打开商标查询入口，但还没有发布完整的查询、截图和 PDF 保存模块。
 
 ## MVP 目标
 
@@ -99,7 +99,22 @@ npm run demo:init
 npm start
 ```
 
-当前交互式 demo 可以从粘贴文本或 CSV 文件导入权利人名称，并生成本地项目工作区。下一步会接入商标模块的可见浏览器控制和 PDF 保存能力。
+当前交互式 demo 可以从粘贴文本或 CSV 文件导入权利人名称，并生成本地项目工作区。
+
+
+打开商标查询入口：
+
+```bash
+npm run trademark:open
+```
+
+默认会读取 `demo-output/Sample IP Due Diligence Project/config/project-config.json`，并用独立浏览器 profile 打开商标查询网站。使用者需要自行处理登录、验证码或网站提示。
+
+只验证启动参数、不实际打开浏览器：
+
+```bash
+node src/cli.js --trademark-open --dry-run
+```
 
 运行语法检查：
 
