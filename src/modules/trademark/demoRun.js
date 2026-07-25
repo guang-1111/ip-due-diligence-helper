@@ -146,52 +146,37 @@ async function clickByText(client, text, options = {}) {
   return found;
 }
 
-async function ensureComprehensiveQueryPage(client, timeoutMs = 15000) {
-  let snapshot = await getSnapshot(client);
-  if (isAbnormal(snapshot)) {
-    return { ready: false, state: "manual_required", snapshot, message: "当前页面疑似验证码、登录页或错误页，请人工处理后重试。" };
-  }
-  if (isComprehensiveQueryReady(snapshot)) {
-    return { ready: true, state: "ready", clicked: false, snapshot, message: "当前已在商标综合查询页。" };
-  }
+async function connectToQuerySystemPage(debugPort) {
+  const targets = await readJson(`http://127.0.0.1:${debugPort}/json/list`);
+  const candidates = targets.filter((target) => {
+    const text = `${target.title || ""} ${target.url || ""}`;
+    return target.type === "page"
+      && target.webSocketDebuggerUrl
+      && /wcjs\.sbj\.cnipa\.gov\.cn/.test(target.url || "")
+      && !/403|Forbidden|请求被阻断/.test(text);
+  });
+  const ordered = [
+    ...candidates.filter((target) => /sgtmi/.test(target.url || "")),
+    ...candidates.filter((target) => /home/.test(target.url || "")),
+    ...candidates.filter((target) => !/sgtmi|home/.test(target.url || "")),
+  ];
 
-  if (/sbj\.cnipa\.gov\.cn/.test(snapshot.url || "") && !/wcjs\.sbj\.cnipa\.gov\.cn/.test(snapshot.url || "")) {
-    await client.send("Page.navigate", { url: "https://wcjs.sbj.cnipa.gov.cn/home" });
-    const startedAt = Date.now();
-    while (Date.now() - startedAt < timeoutMs) {
-      await sleep(1000);
-      snapshot = await getSnapshot(client);
-      if (/wcjs\.sbj\.cnipa\.gov\.cn/.test(snapshot.url || "") || /商标综合查询|商标近似查询|商标状态查询/.test(snapshot.text || "")) {
-        break;
-      }
+  for (const target of ordered) {
+    const queryClient = new CdpClient(target.webSocketDebuggerUrl);
+    await queryClient.connect();
+    const snapshot = await getSnapshot(queryClient);
+    if (!isAbnormal(snapshot) && (/商标综合查询|商标近似查询|商标状态查询|申请人名称/.test(snapshot.text || "") || isComprehensiveQueryReady(snapshot))) {
+      return { client: queryClient, target, snapshot, targets };
     }
+    queryClient.close();
   }
 
-  if (isComprehensiveQueryReady(snapshot)) {
-    return { ready: true, state: "ready", clicked: true, snapshot, message: "已进入商标综合查询页。" };
-  }
+  return { client: null, target: null, snapshot: null, targets };
+}
 
-  if (/wcjs\.sbj\.cnipa\.gov\.cn/.test(snapshot.url || "")) {
-    await client.send("Page.navigate", { url: "https://wcjs.sbj.cnipa.gov.cn/sgtmi" });
-    const startedAt = Date.now();
-    while (Date.now() - startedAt < timeoutMs) {
-      await sleep(800);
-      snapshot = await getSnapshot(client);
-      if (isAbnormal(snapshot)) {
-        return { ready: false, state: "manual_required", clicked: true, snapshot, message: "跳转综合查询页后出现验证码、登录页或错误页，请人工处理。" };
-      }
-      if (isComprehensiveQueryReady(snapshot)) {
-        return { ready: true, state: "ready", clicked: true, snapshot, message: "已直接回到商标综合查询页。" };
-      }
-    }
-  }
-
-  const clickResult = await clickByText(client, "商标综合查询", { exact: true, maxLength: 20 });
-  if (!clickResult || !clickResult.clicked) {
-    return { ready: false, state: "entry_not_found", clicked: false, snapshot, message: "未找到“商标综合查询”入口，请手动点击到该页面后重试。" };
-  }
-
+async function waitForReadyAfterComprehensiveClick(client, clickResult, timeoutMs) {
   const startedAt = Date.now();
+  let snapshot = null;
   while (Date.now() - startedAt < timeoutMs) {
     await sleep(800);
     snapshot = await getSnapshot(client);
@@ -199,13 +184,76 @@ async function ensureComprehensiveQueryPage(client, timeoutMs = 15000) {
       return { ready: false, state: "manual_required", clicked: true, clickResult, snapshot, message: "点击后出现验证码、登录页或错误页，请人工处理。" };
     }
     if (isComprehensiveQueryReady(snapshot)) {
-      return { ready: true, state: "ready", clicked: true, clickResult, snapshot, message: "已进入商标综合查询页。" };
+      return { ready: true, state: "ready", clicked: true, clickResult, snapshot, client, message: "已进入商标综合查询页。" };
     }
   }
-
   return { ready: false, state: "not_ready", clicked: true, clickResult, snapshot, message: "已点击“商标综合查询”，但仍未检测到查询表单。请手动确认页面。" };
 }
 
+async function ensureComprehensiveQueryPage(client, debugPort = DEFAULT_DEBUG_PORT, timeoutMs = 15000) {
+  let snapshot = await getSnapshot(client);
+  if (isAbnormal(snapshot)) {
+    return { ready: false, state: "manual_required", snapshot, message: "当前页面疑似验证码、登录页或错误页，请人工处理后重试。" };
+  }
+  if (isComprehensiveQueryReady(snapshot)) {
+    return { ready: true, state: "ready", clicked: false, snapshot, client, message: "当前已在商标综合查询页。" };
+  }
+
+  if (/sbj\.cnipa\.gov\.cn/.test(snapshot.url || "") && !/wcjs\.sbj\.cnipa\.gov\.cn/.test(snapshot.url || "")) {
+    const portalClick = await clickByText(client, "商标网上查询", { exact: true, maxLength: 20 });
+    if (!portalClick || !portalClick.clicked) {
+      return { ready: false, state: "portal_entry_not_found", clicked: false, snapshot, message: "未找到“商标网上查询”入口，请手动点击到商标查询系统后重试。" };
+    }
+
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      await sleep(1000);
+      const queryConnection = await connectToQuerySystemPage(debugPort);
+      if (queryConnection.client) {
+        client = queryConnection.client;
+        snapshot = queryConnection.snapshot;
+        break;
+      }
+      snapshot = await getSnapshot(client);
+      if (isAbnormal(snapshot)) {
+        return { ready: false, state: "manual_required", clicked: true, clickResult: portalClick, snapshot, message: "进入商标查询系统时出现登录、验证码或错误页，请人工处理。" };
+      }
+    }
+  }
+
+  if (isComprehensiveQueryReady(snapshot)) {
+    return { ready: true, state: "ready", clicked: true, snapshot, client, message: "已进入商标综合查询页。" };
+  }
+
+  if (/sbj\.cnipa\.gov\.cn\/sbj\/sbcx/.test(snapshot.url || "") || /商标查询.*使用说明|使用说明.*商标查询/.test(snapshot.text || "")) {
+    await client.send("Page.navigate", { url: "https://wcjs.sbj.cnipa.gov.cn/sgtmi" });
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      await sleep(1000);
+      snapshot = await getSnapshot(client);
+      if (isAbnormal(snapshot)) {
+        return { ready: false, state: "manual_required", clicked: true, snapshot, message: "进入商标综合查询时触发统一身份认证、验证码或错误页，请先人工处理后重试。" };
+      }
+      if (isComprehensiveQueryReady(snapshot)) {
+        return { ready: true, state: "ready", clicked: true, snapshot, client, message: "已进入商标综合查询页。" };
+      }
+    }
+    return { ready: false, state: "query_entry_timeout", clicked: true, snapshot, message: "已尝试进入商标综合查询，但页面未在限定时间内加载完成。请人工确认页面后重试。" };
+  }
+  if (/wcjs\.sbj\.cnipa\.gov\.cn/.test(snapshot.url || "")) {
+    const clickResult = await clickByText(client, "商标综合查询", { exact: true, maxLength: 20 });
+    if (!clickResult || !clickResult.clicked) {
+      return { ready: false, state: "entry_not_found", clicked: false, snapshot, message: "未找到“商标综合查询”入口，请手动点击到该页面后重试。" };
+    }
+    return waitForReadyAfterComprehensiveClick(client, clickResult, timeoutMs);
+  }
+
+  const clickResult = await clickByText(client, "商标综合查询", { exact: true, maxLength: 20 });
+  if (!clickResult || !clickResult.clicked) {
+    return { ready: false, state: "entry_not_found", clicked: false, snapshot, message: "未找到“商标综合查询”入口，请手动点击到该页面后重试。" };
+  }
+  return waitForReadyAfterComprehensiveClick(client, clickResult, timeoutMs);
+}
 async function fillApplicantName(client, queryName) {
   const target = await client.evaluate(`(() => {
     const visible = (el) => {
@@ -269,23 +317,27 @@ async function submitQuery(client) {
   return { submitted: true, method: "enter", clickResult: byText };
 }
 
-async function connectToResultPage(debugPort, timeoutMs = 15000) {
+async function connectToResultPage(debugPort, queryName, subjectName, timeoutMs = 15000) {
   const startedAt = Date.now();
   let latestTargets = [];
   while (Date.now() - startedAt < timeoutMs) {
     latestTargets = await readJson(`http://127.0.0.1:${debugPort}/json/list`);
-    const resultTarget = latestTargets.find((target) => {
+    const resultTargets = latestTargets.filter((target) => {
       const text = `${target.title || ""} ${target.url || ""}`;
       return target.type === "page" && target.webSocketDebuggerUrl && /wcjs\.sbj\.cnipa\.gov\.cn\/list/.test(target.url || "") && !/403|Forbidden|请求被阻断/.test(text);
     });
-    if (resultTarget) {
-      const resultClient = new CdpClient(resultTarget.webSocketDebuggerUrl);
+    for (const target of resultTargets) {
+      const resultClient = new CdpClient(target.webSocketDebuggerUrl);
       await resultClient.connect();
-      return { client: resultClient, target: resultTarget, targets: latestTargets };
+      const snapshot = await getSnapshot(resultClient);
+      if (isCatalogReady(snapshot, queryName, subjectName)) {
+        return { client: resultClient, target, snapshot, targets: latestTargets };
+      }
+      resultClient.close();
     }
     await sleep(800);
   }
-  return { client: null, target: null, targets: latestTargets };
+  return { client: null, target: null, snapshot: null, targets: latestTargets };
 }
 
 function isCatalogReady(snapshot, queryName, subjectName) {
@@ -315,6 +367,100 @@ async function waitForCatalog(client, queryName, subjectName, timeoutMs = 20000)
     previousLength = length;
   }
   return { ready: false, snapshot: latest, message: "等待目录页超时，未保存 PDF。请确认页面是否卡住、需要验证码或网络过慢。" };
+}
+
+function buildDetailPath(config, projectRoot, subject, detail) {
+  const configForPath = {
+    ...config,
+    outputRoot: config.outputRoot || projectRoot,
+    directoryTemplate: config.directoryTemplate || "{projectName}/{rightType}/{subjectName}",
+    fileNameTemplates: {
+      catalog: "{subjectName}_{rightType}_catalog.pdf",
+      detail: "{rightNo}_detail.pdf",
+      error: "{subjectName}_{rightType}_error_{timestamp}.pdf",
+      ...(config.fileNameTemplates || {}),
+    },
+  };
+  return buildOutputPath(configForPath, subject, "detail", {
+    rightType: "trademark",
+    rightNo: detail.regNum,
+    classNo: detail.intCls,
+    timestamp: nowStamp(),
+  });
+}
+
+async function getCatalogDetails(client, limit) {
+  return client.evaluate(`(() => {
+    const vm = Array.from(document.querySelectorAll('*')).map((el) => el.__vue__).find((v) => v && v.$data && Array.isArray(v.$data.dataList));
+    const dataList = vm && vm.$data ? vm.$data.dataList : [];
+    if (Array.isArray(dataList) && dataList.length > 0) {
+      return dataList.slice(0, ${JSON.stringify(limit)}).map((item, index) => ({
+        rowIndex: index,
+        displayIndex: String(index + 1),
+        regNum: String(item.regNum || ''),
+        intCls: String(item.intCls || ''),
+        appDate: item.appDate || '',
+        appNameCn: item.appNameCn || '',
+        detailParams: {
+          intCls: item.intCls,
+          regNum: item.regNum,
+          _index: index,
+          _qw: (vm.$data && vm.$data.qw_) || 3,
+          dataList,
+        },
+      }));
+    }
+    const rows = Array.from(document.querySelectorAll('tr')).slice(1);
+    return rows.map((tr, index) => {
+      const cells = Array.from(tr.querySelectorAll('td')).map((td) => (td.innerText || '').replace(/\s+/g, ' ').trim());
+      const regLink = Array.from(tr.querySelectorAll('a')).find((a) => /^\d{5,}$/.test((a.innerText || '').trim()));
+      if (!regLink || cells.length < 6) return null;
+      return {
+        rowIndex: index,
+        displayIndex: cells[0] || String(index + 1),
+        regNum: (regLink.innerText || '').trim(),
+        intCls: cells[2] || '',
+        appDate: cells[3] || '',
+        appNameCn: cells[5] || '',
+        detailParams: null,
+      };
+    }).filter(Boolean).slice(0, ${JSON.stringify(limit)});
+  })()`);
+}
+
+async function openDetailInCurrentPage(client, detail) {
+  if (!detail || !detail.detailParams) {
+    return { opened: false, reason: "未取得详情页参数", detail };
+  }
+  await client.evaluate(`(() => {
+    sessionStorage.setItem('params', ${JSON.stringify(JSON.stringify(detail.detailParams))});
+    return true;
+  })()`);
+  await client.send("Page.navigate", { url: "https://wcjs.sbj.cnipa.gov.cn/detail" });
+  return { opened: true, method: "route", url: "https://wcjs.sbj.cnipa.gov.cn/detail" };
+}
+function isDetailReady(snapshot, detail) {
+  if (!snapshot) return false;
+  const text = `${snapshot.title || ""} ${snapshot.url || ""} ${snapshot.text || ""}`;
+  if (isAbnormal(snapshot)) return false;
+  if (/加载中|正在加载|查询中|请稍候/.test(text)) return false;
+  return text.includes(detail.regNum) && /申请人|国际分类|申请日期|商标/.test(text);
+}
+
+async function waitForDetail(client, detail, timeoutMs = 20000) {
+  const startedAt = Date.now();
+  let latest = null;
+  while (Date.now() - startedAt < timeoutMs) {
+    await sleep(1000);
+    latest = await getSnapshot(client);
+    if (isAbnormal(latest)) {
+      return { ready: false, snapshot: latest, message: "详情页触发登录、验证码或网站错误页，请人工处理后重试。" };
+    }
+    if (isDetailReady(latest, detail)) {
+      return { ready: true, snapshot: latest, message: "详情页已通过轻量就绪检查。" };
+    }
+  }
+  return { ready: false, snapshot: latest, message: "等待详情页超时，未保存该详情 PDF。" };
 }
 
 function buildCatalogPath(config, projectRoot, subject) {
@@ -355,7 +501,7 @@ async function savePdf(client, outputPath, checkDate) {
   return { outputPath, bytes: fs.statSync(outputPath).size, snapshot };
 }
 
-async function runTrademarkDemo({ projectArg, subjectArg, queryArg, debugPort = DEFAULT_DEBUG_PORT } = {}) {
+async function runTrademarkDemo({ projectArg, subjectArg, queryArg, detailLimit = 0, debugPort = DEFAULT_DEBUG_PORT } = {}) {
   const project = loadProject(projectArg);
   const subject = chooseSubject(subjectArg, project.subjects);
   const queryName = queryArg || subject.name;
@@ -379,22 +525,23 @@ async function runTrademarkDemo({ projectArg, subjectArg, queryArg, debugPort = 
   const { client } = connection;
   let resultClient = null;
   try {
-    const preparation = await ensureComprehensiveQueryPage(client);
+    const preparation = await ensureComprehensiveQueryPage(client, debugPort);
     if (!preparation.ready) {
       appendJsonLine(runLogPath, { event: "trademark_demo_paused", at: new Date().toISOString(), subject: subject.name, queryName, step: "prepare_query_page", state: preparation.state, message: preparation.message });
       return { ok: false, step: "prepare_query_page", subject, queryName, preparation };
     }
 
-    const fillResult = await fillApplicantName(client, queryName);
+    const activeClient = preparation.client || client;
+    const fillResult = await fillApplicantName(activeClient, queryName);
     if (!fillResult || !fillResult.filled) {
       appendJsonLine(runLogPath, { event: "trademark_demo_paused", at: new Date().toISOString(), subject: subject.name, queryName, step: "fill_subject", fillResult });
       return { ok: false, step: "fill_subject", subject, queryName, preparation, fillResult };
     }
 
-    const submitResult = await submitQuery(client);
-    const resultConnection = await connectToResultPage(debugPort);
+    const submitResult = await submitQuery(activeClient);
+    const resultConnection = await connectToResultPage(debugPort, queryName, subject.name);
     resultClient = resultConnection.client;
-    const catalogClient = resultClient || client;
+    const catalogClient = resultClient || activeClient;
     const catalog = await waitForCatalog(catalogClient, queryName, subject.name);
     if (!catalog.ready) {
       appendJsonLine(runLogPath, { event: "trademark_demo_paused", at: new Date().toISOString(), subject: subject.name, queryName, step: "wait_catalog", message: catalog.message, snapshot: catalog.snapshot ? { title: catalog.snapshot.title, url: catalog.snapshot.url, textSample: normalizeText(catalog.snapshot.text) } : null });
@@ -424,6 +571,40 @@ async function runTrademarkDemo({ projectArg, subjectArg, queryArg, debugPort = 
     fs.appendFileSync(captureRecordsPath, `${Object.values(record).map((value) => `"${String(value || "").replace(/"/g, '""')}"`).join(",")}\n`, "utf8");
     appendJsonLine(runLogPath, { event: "trademark_demo_catalog_saved", at: new Date().toISOString(), subject: subject.name, queryName, filePath: saved.outputPath, bytes: saved.bytes, url: saved.snapshot.url });
 
+    const detailResults = [];
+    const normalizedDetailLimit = Math.max(0, Number(detailLimit) || 0);
+    if (normalizedDetailLimit > 0) {
+      const details = await getCatalogDetails(catalogClient, normalizedDetailLimit);
+      for (const detail of details) {
+        const openDetail = await openDetailInCurrentPage(catalogClient, detail);
+        if (!openDetail.opened) {
+          detailResults.push({ ok: false, detail, step: "open_detail", openDetail });
+          appendJsonLine(runLogPath, { event: "trademark_demo_detail_paused", at: new Date().toISOString(), subject: subject.name, queryName, detail, step: "open_detail", openDetail });
+          continue;
+        }
+        const detailReady = await waitForDetail(catalogClient, detail);
+        if (!detailReady.ready) {
+          detailResults.push({ ok: false, detail, step: "wait_detail", openDetail, detailReady });
+          appendJsonLine(runLogPath, { event: "trademark_demo_detail_paused", at: new Date().toISOString(), subject: subject.name, queryName, detail, step: "wait_detail", message: detailReady.message });
+          continue;
+        }
+        const detailPath = buildDetailPath(project.config, project.projectRoot, subject, detail);
+        const detailSaved = await savePdf(catalogClient, detailPath, project.config.checkDate);
+        const detailRecord = {
+          ...record,
+          record_id: `trademark-detail-${detail.regNum}-${Date.now()}`,
+          page_type: "detail",
+          page_url: detailSaved.snapshot.url,
+          file_path: detailSaved.outputPath,
+          note: `MVP demo saved detail PDF; regNum=${detail.regNum}; class=${detail.intCls}`,
+        };
+        fs.appendFileSync(captureRecordsPath, `${Object.values(detailRecord).map((value) => `"${String(value || "").replace(/"/g, '""')}"`).join(",")}\n`, "utf8");
+        appendJsonLine(runLogPath, { event: "trademark_demo_detail_saved", at: new Date().toISOString(), subject: subject.name, queryName, detail: { ...detail, detailParams: undefined }, filePath: detailSaved.outputPath, bytes: detailSaved.bytes, url: detailSaved.snapshot.url });
+        detailResults.push({ ok: true, detail: { ...detail, detailParams: undefined }, saved: { outputPath: detailSaved.outputPath, bytes: detailSaved.bytes, url: detailSaved.snapshot.url } });
+
+      }
+    }
+
     return {
       ok: true,
       subject,
@@ -433,6 +614,7 @@ async function runTrademarkDemo({ projectArg, subjectArg, queryArg, debugPort = 
       submitResult,
       catalog: { ...catalog, snapshot: { title: catalog.snapshot.title, url: catalog.snapshot.url, textSample: normalizeText(catalog.snapshot.text) } },
       saved: { outputPath: saved.outputPath, bytes: saved.bytes, url: saved.snapshot.url },
+      detailResults,
       captureRecordsPath,
       runLogPath,
     };

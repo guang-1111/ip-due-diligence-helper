@@ -27,7 +27,7 @@ function printHelp() {
   npm run trademark:open
   npm run trademark:open:fresh
   npm run trademark:status
-  npm run trademark:demo -- --subject "示例科技股份有限公司"
+  npm run trademark:demo -- --subject "示例科技股份有限公司" --details 0
   node src/cli.js --trademark-open --project <项目目录或 project-config.json>
   node src/cli.js --trademark-open --fresh-profile
   node src/cli.js --trademark-open --dry-run
@@ -150,7 +150,9 @@ async function runTrademarkDemoCommand() {
   const projectArg = getArgValue("--project");
   const subjectArg = getArgValue("--subject");
   const queryArg = getArgValue("--query");
-  const result = await runTrademarkDemo({ projectArg, subjectArg, queryArg });
+  const detailLimitArg = getArgValue("--details");
+  const detailLimit = detailLimitArg === undefined ? 0 : Number(detailLimitArg);
+  const result = await runTrademarkDemo({ projectArg, subjectArg, queryArg, detailLimit });
 
   console.log("商标网核单主体 demo：");
   console.log(`  权利人：${result.subject ? result.subject.name : subjectArg || "未识别"}`);
@@ -188,6 +190,17 @@ async function runTrademarkDemoCommand() {
   if (result.saved) {
     console.log(`  PDF：${result.saved.outputPath}`);
     console.log(`  文件大小：${result.saved.bytes} bytes`);
+  }
+  if (result.detailResults) {
+    const savedDetails = result.detailResults.filter((item) => item.ok).length;
+    console.log(`  详情页：成功 ${savedDetails}/${result.detailResults.length}`);
+    result.detailResults.forEach((item, index) => {
+      const label = item.detail ? `${item.detail.regNum}/${item.detail.intCls}` : `第${index + 1}条`;
+      console.log(`    ${index + 1}. ${label} - ${item.ok ? "成功" : "失败"}${item.step ? "（" + item.step + "）" : ""}`);
+      if (item.saved) {
+        console.log(`       PDF：${item.saved.outputPath}`);
+      }
+    });
   }
   if (result.captureRecordsPath) {
     console.log(`  记录：${result.captureRecordsPath}`);
