@@ -8,6 +8,7 @@ const { loadSubjectsFromCsv, parseSubjectsFromText, summarizeSubjectWarnings } =
 const { previewOutputPaths } = require("./core/naming");
 const { openTrademarkBrowser } = require("./modules/trademark/openBrowser");
 const { inspectTrademarkPage } = require("./modules/trademark/status");
+const { runTrademarkDemo } = require("./modules/trademark/demoRun");
 
 const DEFAULT_DIRECTORY_TEMPLATE = "{projectName}/{rightType}/{subjectName}";
 const DEFAULT_FILE_TEMPLATES = {
@@ -26,11 +27,12 @@ function printHelp() {
   npm run trademark:open
   npm run trademark:open:fresh
   npm run trademark:status
+  npm run trademark:demo -- --subject "示例科技股份有限公司"
   node src/cli.js --trademark-open --project <项目目录或 project-config.json>
   node src/cli.js --trademark-open --fresh-profile
   node src/cli.js --trademark-open --dry-run
 
-当前 demo 已支持创建本地项目工作区，并可以打开商标模块的可见浏览器入口。后续会继续接入查询、页面就绪检查和 PDF 保存。
+当前 demo 已支持创建本地项目工作区、打开商标模块浏览器、检测页面状态，并提供单主体商标网核演示命令。
 `);
 }
 
@@ -144,6 +146,46 @@ async function runTrademarkStatus() {
     });
   }
 }
+async function runTrademarkDemoCommand() {
+  const projectArg = getArgValue("--project");
+  const subjectArg = getArgValue("--subject");
+  const result = await runTrademarkDemo({ projectArg, subjectArg });
+
+  console.log("商标网核单主体 demo：");
+  console.log(`  权利人：${result.subject ? result.subject.name : subjectArg || "未识别"}`);
+  console.log(`  结果：${result.ok ? "成功" : "暂停/失败"}`);
+  if (result.preparation) {
+    console.log(`  查询页准备：${result.preparation.state} - ${result.preparation.message}`);
+  }
+  if (result.fillResult) {
+    console.log(`  输入权利人：${result.fillResult.filled ? "成功" : "失败"}`);
+    if (result.fillResult.nearbyText) {
+      console.log(`  输入框线索：${result.fillResult.nearbyText}`);
+    }
+  }
+  if (result.submitResult) {
+    console.log(`  提交方式：${result.submitResult.method}`);
+  }
+  if (result.catalog) {
+    console.log(`  目录页状态：${result.catalog.ready ? "就绪" : "未就绪"}`);
+    console.log(`  目录页提示：${result.catalog.message}`);
+    if (result.catalog.snapshot) {
+      console.log(`  当前网址：${result.catalog.snapshot.url}`);
+      console.log(`  页面摘要：${result.catalog.snapshot.textSample}`);
+    }
+  }
+  if (result.saved) {
+    console.log(`  PDF：${result.saved.outputPath}`);
+    console.log(`  文件大小：${result.saved.bytes} bytes`);
+  }
+  if (result.captureRecordsPath) {
+    console.log(`  记录：${result.captureRecordsPath}`);
+  }
+  if (!result.ok) {
+    console.log(`  停在步骤：${result.step}`);
+    console.log("  请在浏览器中处理页面后重试，或先手动进入商标综合查询页。");
+  }
+}
 async function main() {
   if (process.argv.includes("--help") || process.argv.includes("-h")) {
     printHelp();
@@ -162,6 +204,12 @@ async function main() {
 
   if (process.argv.includes("--trademark-status")) {
     await runTrademarkStatus();
+    return;
+  }
+
+
+  if (process.argv.includes("--trademark-demo")) {
+    await runTrademarkDemoCommand();
     return;
   }
 

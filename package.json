@@ -10,7 +10,8 @@
     "trademark:open": "node src/cli.js --trademark-open",
     "trademark:open:fresh": "node src/cli.js --trademark-open --fresh-profile",
     "trademark:status": "node src/cli.js --trademark-status",
-    "check": "node --check src/cli.js && node --check src/core/project.js && node --check src/core/subjects.js && node --check src/core/naming.js && node --check src/core/logger.js && node --check src/modules/trademark/openBrowser.js && node --check src/modules/trademark/status.js"
+    "trademark:demo": "node src/cli.js --trademark-demo",
+    "check": "node --check src/cli.js && node --check src/core/project.js && node --check src/core/subjects.js && node --check src/core/naming.js && node --check src/core/logger.js && node --check src/modules/trademark/openBrowser.js && node --check src/modules/trademark/status.js && node --check src/modules/trademark/demoRun.js && node --check src/core/browser/cdp.js"
   },
   "keywords": [
     "intellectual-property",
@@ -20,6 +21,6 @@
   ],
   "license": "MIT",
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   }
 }
