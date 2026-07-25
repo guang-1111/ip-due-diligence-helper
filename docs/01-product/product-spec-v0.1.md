@@ -1,4 +1,4 @@
-﻿# 知识产权网络核查助手 MVP 产品规格书 v0.1
+# 知识产权网络核查助手 MVP 产品规格书 v0.1
 
 ## 1. 产品定位
 
@@ -109,7 +109,12 @@
   "createdAt": "2026-07-07T10:00:00+08:00",
   "checkDate": "2026-07-07",
   "outputRoot": "D:/项目底稿/示例项目",
-  "enabledModules": ["trademark"],`r`n  "pdfValidation": {`r`n    "enabled": false,`r`n    "mode": "text",`r`n    "minTextLength": 200`r`n  },
+  "enabledModules": ["trademark"],
+  "pdfValidation": {
+    "enabled": false,
+    "mode": "text",
+    "minTextLength": 200
+  },
   "directoryTemplate": "{项目名}/{权利类型}/{权利人}/{文件名}",
   "fileNameTemplates": {
     "catalog": "{权利人}_{权利类型}目录页.pdf",

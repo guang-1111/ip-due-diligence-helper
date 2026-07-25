@@ -27,7 +27,9 @@
 - 商标模块执行规格；
 - 示例权利人清单；
 - 示例项目配置；
-- 一个最小可运行的本地项目初始化 demo；`n- 商标模块可见浏览器入口打开能力；
+- 一个最小可运行的本地项目初始化 demo；
+- 商标模块可见浏览器入口打开能力；
+- 商标模块页面状态检测能力；
 - Git 忽略规则，避免误提交底稿、浏览器状态、日志和本地输出。
 
 目前已经可以打开商标局官网入口，但还没有发布完整的查询、截图和 PDF 保存模块。
@@ -64,16 +66,19 @@
 ```text
 .
 |-- docs/
-|   |-- product-spec-v0.1.md
-|   `-- trademark-module-spec-v0.1.md
+|   |-- README.md
+|   |-- 00-overview/
+|   |-- 01-product/
+|   |-- 02-modules/
+|   `-- 03-development/
 |-- examples/
 |   |-- project-config.example.json
 |   `-- subjects-template.csv
 |-- src/
 |   |-- cli.js
 |   |-- README.md
-|   `-- core/
-|-- ROADMAP.md
+|   |-- core/
+|   `-- modules/
 |-- README.md
 |-- LICENSE
 `-- .gitignore
@@ -138,9 +143,11 @@ npm run check
 
 ## 文档
 
-- [产品规格 v0.1](docs/product-spec-v0.1.md)
-- [商标模块执行规格 v0.1](docs/trademark-module-spec-v0.1.md)
-- [开发路线图](ROADMAP.md)
+- [文档目录](docs/README.md)
+- [当前进度](docs/00-overview/project-status.md)
+- [产品规格 v0.1](docs/01-product/product-spec-v0.1.md)
+- [商标模块执行规格 v0.1](docs/02-modules/trademark/trademark-module-spec-v0.1.md)
+- [开发路线图](docs/03-development/roadmap.md)
 
 ## 示例输入
 
