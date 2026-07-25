@@ -149,7 +149,13 @@ function classifyTarget(target, snapshot) {
 
 function chooseMainPage(targets) {
   const pages = targets.filter((target) => target.type === "page" && target.url && !target.url.startsWith("devtools://"));
-  return pages.find((target) => /wcjs\.sbj\.cnipa\.gov\.cn|sbj\.cnipa\.gov\.cn/.test(target.url || "")) || pages[0];
+  const isIpPage = (target) => /wcjs\.sbj\.cnipa\.gov\.cn|sbj\.cnipa\.gov\.cn/.test(target.url || "");
+  const isBlocked = (target) => /403|Forbidden|请求被阻断/.test(`${target.title || ""} ${target.url || ""}`);
+  return pages.find((target) => isIpPage(target) && !isBlocked(target) && /sgtmi/.test(target.url || ""))
+    || pages.find((target) => isIpPage(target) && !isBlocked(target) && /home|list/.test(target.url || ""))
+    || pages.find((target) => isIpPage(target) && !isBlocked(target))
+    || pages.find((target) => isIpPage(target))
+    || pages[0];
 }
 
 async function inspectTrademarkPage({ debugPort = DEFAULT_DEBUG_PORT } = {}) {

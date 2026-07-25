@@ -1,6 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { connectToMainPage, sleep } = require("../../core/browser/cdp");
+const { CdpClient, connectToMainPage, readJson, sleep } = require("../../core/browser/cdp");
 const { appendJsonLine } = require("../../core/logger");
 const { buildOutputPath, sanitizePathSegment } = require("../../core/naming");
 const { loadSubjectsFromCsv } = require("../../core/subjects");
@@ -39,6 +39,7 @@ function chooseSubject(subjectArg, subjects) {
   }
   return subjects[0];
 }
+
 
 function normalizeText(value, maxLength = 600) {
   return String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength);
@@ -116,22 +117,23 @@ async function clickByText(client, text, options = {}) {
       .join('')
       .replace(/\\s+/g, ' ')
       .trim();
-    const labelOf = (el) => (ownText(el) || el.getAttribute('aria-label') || el.getAttribute('title') || el.innerText || el.textContent || '')
+    const labelOf = (el) => (ownText(el) || el.value || el.getAttribute('aria-label') || el.getAttribute('title') || el.innerText || el.textContent || '')
       .replace(/\\s+/g, ' ')
       .trim();
-    const elements = Array.from(document.querySelectorAll('a, button, [role="button"], li, div, span, td'));
+    const elements = Array.from(document.querySelectorAll('a, button, input[type="button"], input[type="submit"], [role="button"], li, div, span, td'));
     const candidates = elements
       .filter((el) => visible(el))
       .map((el) => ({ el, label: labelOf(el) }))
       .filter((item) => item.label && item.label.length <= maxLength && (exact ? item.label === targetText : item.label.includes(targetText)));
-    const preferred = candidates.find((item) => ['A', 'BUTTON'].includes(item.el.tagName)) || candidates[0];
+    const preferred = candidates.find((item) => ['INPUT', 'BUTTON', 'A'].includes(item.el.tagName)) || candidates[0];
     if (!preferred) return { clicked: false, reason: '未找到可点击文本', text: targetText };
-    const rect = preferred.el.getBoundingClientRect();
     preferred.el.scrollIntoView({ block: 'center', inline: 'center' });
+    const rect = preferred.el.getBoundingClientRect();
     return {
       clicked: true,
       label: preferred.label,
       tag: preferred.el.tagName,
+      type: preferred.el.getAttribute('type') || '',
       x: Math.round(rect.left + rect.width / 2),
       y: Math.round(rect.top + rect.height / 2)
     };
@@ -169,6 +171,21 @@ async function ensureComprehensiveQueryPage(client, timeoutMs = 15000) {
     return { ready: true, state: "ready", clicked: true, snapshot, message: "已进入商标综合查询页。" };
   }
 
+  if (/wcjs\.sbj\.cnipa\.gov\.cn/.test(snapshot.url || "")) {
+    await client.send("Page.navigate", { url: "https://wcjs.sbj.cnipa.gov.cn/sgtmi" });
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      await sleep(800);
+      snapshot = await getSnapshot(client);
+      if (isAbnormal(snapshot)) {
+        return { ready: false, state: "manual_required", clicked: true, snapshot, message: "跳转综合查询页后出现验证码、登录页或错误页，请人工处理。" };
+      }
+      if (isComprehensiveQueryReady(snapshot)) {
+        return { ready: true, state: "ready", clicked: true, snapshot, message: "已直接回到商标综合查询页。" };
+      }
+    }
+  }
+
   const clickResult = await clickByText(client, "商标综合查询", { exact: true, maxLength: 20 });
   if (!clickResult || !clickResult.clicked) {
     return { ready: false, state: "entry_not_found", clicked: false, snapshot, message: "未找到“商标综合查询”入口，请手动点击到该页面后重试。" };
@@ -189,47 +206,61 @@ async function ensureComprehensiveQueryPage(client, timeoutMs = 15000) {
   return { ready: false, state: "not_ready", clicked: true, clickResult, snapshot, message: "已点击“商标综合查询”，但仍未检测到查询表单。请手动确认页面。" };
 }
 
-async function fillApplicantName(client, subjectName) {
-  return client.evaluate(`(() => {
-    const subject = ${JSON.stringify(subjectName)};
+async function fillApplicantName(client, queryName) {
+  const target = await client.evaluate(`(() => {
     const visible = (el) => {
       const style = window.getComputedStyle(el);
       const rect = el.getBoundingClientRect();
       return !el.disabled && !el.readOnly && style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
     };
-    const setValue = (el, value) => {
-      const proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
-      const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
-      if (descriptor && descriptor.set) descriptor.set.call(el, value);
-      else el.value = value;
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-    };
-    const labelFor = (el) => [
-      el.placeholder || '',
-      el.name || '',
-      el.id || '',
-      el.getAttribute('aria-label') || '',
-      (el.closest('label, .el-form-item, .form-item, .ant-form-item, tr, td, div') || el.parentElement || el).innerText || ''
-    ].join(' ');
-    const inputs = Array.from(document.querySelectorAll('input:not([type="hidden"]), textarea')).filter(visible);
-    const preferred = inputs.find((el) => /申请人名称|申请人|权利人|申请\/注册人|申请人中文名称/.test(labelFor(el)))
-      || inputs.find((el) => /请输入|输入/.test(labelFor(el)))
-      || inputs[0];
-    if (!preferred) return { filled: false, reason: '未找到可输入的申请人名称输入框', inputCount: inputs.length };
-    preferred.focus();
-    setValue(preferred, subject);
+    const inputs = Array.from(document.querySelectorAll('input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]), textarea')).filter(visible);
+    const preferred = document.body.innerText.includes('申请人名称（中文）') && inputs.length >= 4 ? inputs[3] : inputs[0];
+    if (!preferred) return { found: false, reason: '未找到可输入文本框', inputCount: inputs.length };
+    const rect = preferred.getBoundingClientRect();
     return {
-      filled: true,
+      found: true,
       inputCount: inputs.length,
+      selectedIndex: inputs.indexOf(preferred),
+      x: Math.round(rect.left + rect.width / 2),
+      y: Math.round(rect.top + rect.height / 2),
       placeholder: preferred.placeholder || '',
-      name: preferred.name || '',
       id: preferred.id || '',
-      nearbyText: labelFor(preferred).replace(/\\s+/g, ' ').trim().slice(0, 120)
+      name: preferred.name || ''
     };
   })()`);
-}
 
+  if (!target || !target.found) {
+    return { filled: false, ...(target || {}) };
+  }
+
+  await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: target.x, y: target.y, button: "none" });
+  await client.send("Input.dispatchMouseEvent", { type: "mousePressed", x: target.x, y: target.y, button: "left", clickCount: 1 });
+  await client.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: target.x, y: target.y, button: "left", clickCount: 1 });
+  await sleep(150);
+  await client.send("Input.dispatchKeyEvent", { type: "keyDown", windowsVirtualKeyCode: 17, key: "Control", code: "ControlLeft", modifiers: 2 });
+  await client.send("Input.dispatchKeyEvent", { type: "keyDown", windowsVirtualKeyCode: 65, key: "a", code: "KeyA", modifiers: 2 });
+  await client.send("Input.dispatchKeyEvent", { type: "keyUp", windowsVirtualKeyCode: 65, key: "a", code: "KeyA", modifiers: 2 });
+  await client.send("Input.dispatchKeyEvent", { type: "keyUp", windowsVirtualKeyCode: 17, key: "Control", code: "ControlLeft" });
+  await client.send("Input.insertText", { text: queryName });
+  await sleep(250);
+
+  const verification = await client.evaluate(`(() => {
+    const visible = (el) => {
+      const style = window.getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      return !el.disabled && !el.readOnly && style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+    };
+    const inputs = Array.from(document.querySelectorAll('input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]), textarea')).filter(visible);
+    const selected = inputs[${JSON.stringify(target.selectedIndex)}];
+    return { valueAfterFill: selected ? selected.value : '', inputCount: inputs.length };
+  })()`);
+
+  return {
+    filled: Boolean(verification && verification.valueAfterFill === queryName),
+    ...target,
+    ...(verification || {}),
+  };
+}
 async function submitQuery(client) {
   const byText = await clickByText(client, "查询", { exact: true, maxLength: 10 });
   if (byText && byText.clicked) return { submitted: true, method: "button", clickResult: byText };
@@ -238,16 +269,38 @@ async function submitQuery(client) {
   return { submitted: true, method: "enter", clickResult: byText };
 }
 
-function isCatalogReady(snapshot, subjectName) {
+async function connectToResultPage(debugPort, timeoutMs = 15000) {
+  const startedAt = Date.now();
+  let latestTargets = [];
+  while (Date.now() - startedAt < timeoutMs) {
+    latestTargets = await readJson(`http://127.0.0.1:${debugPort}/json/list`);
+    const resultTarget = latestTargets.find((target) => {
+      const text = `${target.title || ""} ${target.url || ""}`;
+      return target.type === "page" && target.webSocketDebuggerUrl && /wcjs\.sbj\.cnipa\.gov\.cn\/list/.test(target.url || "") && !/403|Forbidden|请求被阻断/.test(text);
+    });
+    if (resultTarget) {
+      const resultClient = new CdpClient(resultTarget.webSocketDebuggerUrl);
+      await resultClient.connect();
+      return { client: resultClient, target: resultTarget, targets: latestTargets };
+    }
+    await sleep(800);
+  }
+  return { client: null, target: null, targets: latestTargets };
+}
+
+function isCatalogReady(snapshot, queryName, subjectName) {
   if (!snapshot) return false;
   const text = `${snapshot.title || ""} ${snapshot.url || ""} ${snapshot.text || ""}`;
   if (isAbnormal(snapshot)) return false;
   if (/加载中|正在加载|查询中|请稍候/.test(text)) return false;
   if (/暂无数据|无结果|未查询到|没有符合条件|查询结果为空/.test(text)) return true;
-  return text.includes(subjectName) || /注册号|申请号|商标名称|国际分类|申请人名称|申请人|详情|查看/.test(text);
+  const onResultPage = /\/list(?:\?|$)|\/tmi/.test(snapshot.url || "") || /商标检索结果/.test(snapshot.title || "");
+  const hasResultStructure = /序号\s+申请\/注册号|申请\/注册号\s+国际分类|商标\s+申请人名称/.test(text);
+  const hasQueryName = (queryName && text.includes(queryName)) || (subjectName && text.includes(subjectName));
+  return Boolean(onResultPage && hasResultStructure && hasQueryName);
 }
 
-async function waitForCatalog(client, subjectName, timeoutMs = 20000) {
+async function waitForCatalog(client, queryName, subjectName, timeoutMs = 20000) {
   const startedAt = Date.now();
   let previousLength = -1;
   let latest = null;
@@ -256,7 +309,7 @@ async function waitForCatalog(client, subjectName, timeoutMs = 20000) {
     latest = await getSnapshot(client);
     const length = String(latest.text || "").length;
     const stable = previousLength >= 0 && Math.abs(length - previousLength) < Math.max(80, previousLength * 0.2);
-    if (isCatalogReady(latest, subjectName) && (stable || Date.now() - startedAt > 5000)) {
+    if (isCatalogReady(latest, queryName, subjectName) && (stable || Date.now() - startedAt > 5000)) {
       return { ready: true, snapshot: latest, message: "目录页已通过轻量就绪检查。" };
     }
     previousLength = length;
@@ -302,9 +355,10 @@ async function savePdf(client, outputPath, checkDate) {
   return { outputPath, bytes: fs.statSync(outputPath).size, snapshot };
 }
 
-async function runTrademarkDemo({ projectArg, subjectArg, debugPort = DEFAULT_DEBUG_PORT } = {}) {
+async function runTrademarkDemo({ projectArg, subjectArg, queryArg, debugPort = DEFAULT_DEBUG_PORT } = {}) {
   const project = loadProject(projectArg);
   const subject = chooseSubject(subjectArg, project.subjects);
+  const queryName = queryArg || subject.name;
   const logsDir = path.join(project.projectRoot, "logs");
   ensureDir(logsDir);
   const runLogPath = path.join(logsDir, "run.jsonl");
@@ -314,7 +368,7 @@ async function runTrademarkDemo({ projectArg, subjectArg, debugPort = DEFAULT_DE
   try {
     connection = await connectToMainPage(debugPort);
   } catch (error) {
-    appendJsonLine(runLogPath, { event: "trademark_demo_paused", at: new Date().toISOString(), subject: subject.name, step: "connect_browser", message: error.message });
+    appendJsonLine(runLogPath, { event: "trademark_demo_paused", at: new Date().toISOString(), subject: subject.name, queryName, step: "connect_browser", message: error.message });
     return {
       ok: false,
       step: "connect_browser",
@@ -323,28 +377,32 @@ async function runTrademarkDemo({ projectArg, subjectArg, debugPort = DEFAULT_DE
     };
   }
   const { client } = connection;
+  let resultClient = null;
   try {
     const preparation = await ensureComprehensiveQueryPage(client);
     if (!preparation.ready) {
-      appendJsonLine(runLogPath, { event: "trademark_demo_paused", at: new Date().toISOString(), subject: subject.name, step: "prepare_query_page", state: preparation.state, message: preparation.message });
-      return { ok: false, step: "prepare_query_page", subject, preparation };
+      appendJsonLine(runLogPath, { event: "trademark_demo_paused", at: new Date().toISOString(), subject: subject.name, queryName, step: "prepare_query_page", state: preparation.state, message: preparation.message });
+      return { ok: false, step: "prepare_query_page", subject, queryName, preparation };
     }
 
-    const fillResult = await fillApplicantName(client, subject.name);
+    const fillResult = await fillApplicantName(client, queryName);
     if (!fillResult || !fillResult.filled) {
-      appendJsonLine(runLogPath, { event: "trademark_demo_paused", at: new Date().toISOString(), subject: subject.name, step: "fill_subject", fillResult });
-      return { ok: false, step: "fill_subject", subject, preparation, fillResult };
+      appendJsonLine(runLogPath, { event: "trademark_demo_paused", at: new Date().toISOString(), subject: subject.name, queryName, step: "fill_subject", fillResult });
+      return { ok: false, step: "fill_subject", subject, queryName, preparation, fillResult };
     }
 
     const submitResult = await submitQuery(client);
-    const catalog = await waitForCatalog(client, subject.name);
+    const resultConnection = await connectToResultPage(debugPort);
+    resultClient = resultConnection.client;
+    const catalogClient = resultClient || client;
+    const catalog = await waitForCatalog(catalogClient, queryName, subject.name);
     if (!catalog.ready) {
-      appendJsonLine(runLogPath, { event: "trademark_demo_paused", at: new Date().toISOString(), subject: subject.name, step: "wait_catalog", message: catalog.message, snapshot: catalog.snapshot ? { title: catalog.snapshot.title, url: catalog.snapshot.url, textSample: normalizeText(catalog.snapshot.text) } : null });
-      return { ok: false, step: "wait_catalog", subject, preparation, fillResult, submitResult, catalog };
+      appendJsonLine(runLogPath, { event: "trademark_demo_paused", at: new Date().toISOString(), subject: subject.name, queryName, step: "wait_catalog", message: catalog.message, snapshot: catalog.snapshot ? { title: catalog.snapshot.title, url: catalog.snapshot.url, textSample: normalizeText(catalog.snapshot.text) } : null });
+      return { ok: false, step: "wait_catalog", subject, queryName, preparation, fillResult, submitResult, catalog };
     }
 
     const pdfPath = buildCatalogPath(project.config, project.projectRoot, subject);
-    const saved = await savePdf(client, pdfPath, project.config.checkDate);
+    const saved = await savePdf(catalogClient, pdfPath, project.config.checkDate);
     const record = {
       record_id: `trademark-catalog-${Date.now()}`,
       subject_index: subject.id,
@@ -357,18 +415,19 @@ async function runTrademarkDemo({ projectArg, subjectArg, debugPort = DEFAULT_DE
       page_url: saved.snapshot.url,
       file_path: saved.outputPath,
       status: "success",
-      note: "MVP demo saved catalog PDF",
+      note: `MVP demo saved catalog PDF; queryName=${queryName}`,
     };
 
     if (!fileExists(captureRecordsPath)) {
       fs.writeFileSync(captureRecordsPath, `${Object.keys(record).join(",")}\n`, "utf8");
     }
     fs.appendFileSync(captureRecordsPath, `${Object.values(record).map((value) => `"${String(value || "").replace(/"/g, '""')}"`).join(",")}\n`, "utf8");
-    appendJsonLine(runLogPath, { event: "trademark_demo_catalog_saved", at: new Date().toISOString(), subject: subject.name, filePath: saved.outputPath, bytes: saved.bytes, url: saved.snapshot.url });
+    appendJsonLine(runLogPath, { event: "trademark_demo_catalog_saved", at: new Date().toISOString(), subject: subject.name, queryName, filePath: saved.outputPath, bytes: saved.bytes, url: saved.snapshot.url });
 
     return {
       ok: true,
       subject,
+      queryName,
       preparation,
       fillResult,
       submitResult,
@@ -378,6 +437,7 @@ async function runTrademarkDemo({ projectArg, subjectArg, debugPort = DEFAULT_DE
       runLogPath,
     };
   } finally {
+    if (resultClient) resultClient.close();
     client.close();
   }
 }

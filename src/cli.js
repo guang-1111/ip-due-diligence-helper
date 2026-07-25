@@ -149,22 +149,33 @@ async function runTrademarkStatus() {
 async function runTrademarkDemoCommand() {
   const projectArg = getArgValue("--project");
   const subjectArg = getArgValue("--subject");
-  const result = await runTrademarkDemo({ projectArg, subjectArg });
+  const queryArg = getArgValue("--query");
+  const result = await runTrademarkDemo({ projectArg, subjectArg, queryArg });
 
   console.log("商标网核单主体 demo：");
   console.log(`  权利人：${result.subject ? result.subject.name : subjectArg || "未识别"}`);
+  if (result.queryName) {
+    console.log(`  实际检索词：${result.queryName}`);
+  }
   console.log(`  结果：${result.ok ? "成功" : "暂停/失败"}`);
   if (result.preparation) {
     console.log(`  查询页准备：${result.preparation.state} - ${result.preparation.message}`);
   }
   if (result.fillResult) {
     console.log(`  输入权利人：${result.fillResult.filled ? "成功" : "失败"}`);
+    if (result.fillResult.valueAfterFill) {
+      console.log(`  输入框内容：${result.fillResult.valueAfterFill}`);
+    }
     if (result.fillResult.nearbyText) {
       console.log(`  输入框线索：${result.fillResult.nearbyText}`);
     }
   }
   if (result.submitResult) {
     console.log(`  提交方式：${result.submitResult.method}`);
+    if (result.submitResult.clickResult) {
+      const click = result.submitResult.clickResult;
+      console.log(`  点击元素：${click.tag || "未知"}${click.type ? "/" + click.type : ""} ${click.label || ""} (${click.x || "?"}, ${click.y || "?"})`);
+    }
   }
   if (result.catalog) {
     console.log(`  目录页状态：${result.catalog.ready ? "就绪" : "未就绪"}`);
