@@ -335,25 +335,6 @@ GitHub 打不开：
 `-- .gitignore
 ```
 
-## 公开前提醒
-
-公开 GitHub 仓库前，请确认没有提交：
-
-- 真实项目材料；
-- 生成的 PDF、图片、网页截图；
-- 登录 cookie、浏览器 profile、账号凭据；
-- 个人保密路径；
-- API key、密码、token；
-- 客户或项目相关保密数据。
-
-本仓库已经通过 `.gitignore` 忽略常见本地输出，但公开前仍建议再跑一次：
-
-```powershell
-git status --short
-```
-
-确认没有意外文件后再公开。
-
 ## License
 
 MIT
